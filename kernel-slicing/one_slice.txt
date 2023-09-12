@@ -1,0 +1,140 @@
+total_blocks=6, slice_size=6, total_slices=1
+
+Executing slice number 1
+ Blocks Completed=6, Blocks Remain=0
+First 10 values 
+0
+2
+4
+6
+8
+10
+12
+14
+16
+18
+Last 10 values 
+6124
+6126
+6128
+6130
+6132
+6134
+6136
+6138
+6140
+6142
+total_blocks=6, slice_size=6, total_slices=1
+
+Executing slice number 1
+ Blocks Completed=6, Blocks Remain=0
+First 10 values 
+0
+2
+4
+6
+8
+10
+12
+14
+16
+18
+Last 10 values 
+6124
+6126
+6128
+6130
+6132
+6134
+6136
+6138
+6140
+6142
+total_blocks=6, slice_size=6, total_slices=1
+
+Executing slice number 1
+ Blocks Completed=6, Blocks Remain=0
+First 10 values 
+0
+2
+4
+6
+8
+10
+12
+14
+16
+18
+Last 10 values 
+6124
+6126
+6128
+6130
+6132
+6134
+6136
+6138
+6140
+6142
+total_blocks=6, slice_size=6, total_slices=1
+
+Executing slice number 1
+ Blocks Completed=6, Blocks Remain=0
+First 10 values 
+0
+2
+4
+6
+8
+10
+12
+14
+16
+18
+Last 10 values 
+6124
+6126
+6128
+6130
+6132
+6134
+6136
+6138
+6140
+6142
+total_blocks=6, slice_size=6, total_slices=1
+
+Executing slice number 1
+ Blocks Completed=6, Blocks Remain=0
+First 10 values 
+0
+2
+4
+6
+8
+10
+12
+14
+16
+18
+Last 10 values 
+6124
+6126
+6128
+6130
+6132
+6134
+6136
+6138
+6140
+6142
+Running process 1
+Execution took 1.0334694385528564 seconds
+Running process 2
+Execution took 0.10428500175476074 seconds
+Running process 3
+Execution took 0.09965991973876953 seconds
+Running process 4
+Execution took 0.0642549991607666 seconds
+Running process 5
+Execution took 0.09827947616577148 seconds

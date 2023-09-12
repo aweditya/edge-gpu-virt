@@ -1,0 +1,170 @@
+total_blocks=6, slice_size=2, total_slices=3
+
+Executing slice number 1
+ Blocks Completed=2, Blocks Remain=4
+
+Executing slice number 2
+ Blocks Completed=4, Blocks Remain=2
+
+Executing slice number 3
+ Blocks Completed=6, Blocks Remain=0
+First 10 values 
+0
+2
+4
+6
+8
+10
+12
+14
+16
+18
+Last 10 values 
+6124
+6126
+6128
+6130
+6132
+6134
+6136
+6138
+6140
+6142
+total_blocks=6, slice_size=2, total_slices=3
+
+Executing slice number 1
+ Blocks Completed=2, Blocks Remain=4
+
+Executing slice number 2
+ Blocks Completed=4, Blocks Remain=2
+
+Executing slice number 3
+ Blocks Completed=6, Blocks Remain=0
+First 10 values 
+0
+2
+4
+6
+8
+10
+12
+14
+16
+18
+Last 10 values 
+6124
+6126
+6128
+6130
+6132
+6134
+6136
+6138
+6140
+6142
+total_blocks=6, slice_size=2, total_slices=3
+
+Executing slice number 1
+ Blocks Completed=2, Blocks Remain=4
+
+Executing slice number 2
+ Blocks Completed=4, Blocks Remain=2
+
+Executing slice number 3
+ Blocks Completed=6, Blocks Remain=0
+First 10 values 
+0
+2
+4
+6
+8
+10
+12
+14
+16
+18
+Last 10 values 
+6124
+6126
+6128
+6130
+6132
+6134
+6136
+6138
+6140
+6142
+total_blocks=6, slice_size=2, total_slices=3
+
+Executing slice number 1
+ Blocks Completed=2, Blocks Remain=4
+
+Executing slice number 2
+ Blocks Completed=4, Blocks Remain=2
+
+Executing slice number 3
+ Blocks Completed=6, Blocks Remain=0
+First 10 values 
+0
+2
+4
+6
+8
+10
+12
+14
+16
+18
+Last 10 values 
+6124
+6126
+6128
+6130
+6132
+6134
+6136
+6138
+6140
+6142
+total_blocks=6, slice_size=2, total_slices=3
+
+Executing slice number 1
+ Blocks Completed=2, Blocks Remain=4
+
+Executing slice number 2
+ Blocks Completed=4, Blocks Remain=2
+
+Executing slice number 3
+ Blocks Completed=6, Blocks Remain=0
+First 10 values 
+0
+2
+4
+6
+8
+10
+12
+14
+16
+18
+Last 10 values 
+6124
+6126
+6128
+6130
+6132
+6134
+6136
+6138
+6140
+6142
+Running process 1
+Execution took 1.02769136428833 seconds
+Running process 2
+Execution took 0.09356403350830078 seconds
+Running process 3
+Execution took 0.06496858596801758 seconds
+Running process 4
+Execution took 0.0972285270690918 seconds
+Running process 5
+Execution took 0.061518192291259766 seconds
