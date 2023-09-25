@@ -1,0 +1,70 @@
+/home/aditya/Projects/iitb/ee491/parboil/datasets/sgemm/medium/input/matrix1.txt /home/aditya/Projects/iitb/ee491/parboil/datasets/sgemm/medium/input/matrix2.txt /home/aditya/Projects/iitb/ee491/parboil/datasets/sgemm/medium/input/matrix2t.txt
+gridConf: (8, 66)
+blockConf: (16, 8)
+sGridConf: (8, 66)
+GFLOPs = 846.306
+IO        : 0.388291
+Kernel    : 0.002535
+Copy      : 0.002602
+Driver    : 0.000692
+Compute   : 1.014603
+CPU/Kernel Overlap: 0.000703
+Timer Wall Time: 1.408746
+/home/aditya/Projects/iitb/ee491/parboil/datasets/sgemm/medium/input/matrix1.txt /home/aditya/Projects/iitb/ee491/parboil/datasets/sgemm/medium/input/matrix2.txt /home/aditya/Projects/iitb/ee491/parboil/datasets/sgemm/medium/input/matrix2t.txt
+gridConf: (8, 66)
+blockConf: (16, 8)
+sGridConf: (8, 66)
+GFLOPs = 812.339
+IO        : 0.367900
+Kernel    : 0.002641
+Copy      : 0.002466
+Driver    : 0.000798
+Compute   : 0.072897
+CPU/Kernel Overlap: 0.000807
+Timer Wall Time: 0.446609
+/home/aditya/Projects/iitb/ee491/parboil/datasets/sgemm/medium/input/matrix1.txt /home/aditya/Projects/iitb/ee491/parboil/datasets/sgemm/medium/input/matrix2.txt /home/aditya/Projects/iitb/ee491/parboil/datasets/sgemm/medium/input/matrix2t.txt
+gridConf: (8, 66)
+blockConf: (16, 8)
+sGridConf: (8, 66)
+GFLOPs = 847.979
+IO        : 0.372528
+Kernel    : 0.002530
+Copy      : 0.002451
+Driver    : 0.000690
+Compute   : 0.069043
+CPU/Kernel Overlap: 0.000704
+Timer Wall Time: 0.447269
+/home/aditya/Projects/iitb/ee491/parboil/datasets/sgemm/medium/input/matrix1.txt /home/aditya/Projects/iitb/ee491/parboil/datasets/sgemm/medium/input/matrix2.txt /home/aditya/Projects/iitb/ee491/parboil/datasets/sgemm/medium/input/matrix2t.txt
+gridConf: (8, 66)
+blockConf: (16, 8)
+sGridConf: (8, 66)
+GFLOPs = 846.975
+IO        : 0.364662
+Kernel    : 0.002533
+Copy      : 0.002459
+Driver    : 0.000694
+Compute   : 0.047705
+CPU/Kernel Overlap: 0.000705
+Timer Wall Time: 0.418087
+/home/aditya/Projects/iitb/ee491/parboil/datasets/sgemm/medium/input/matrix1.txt /home/aditya/Projects/iitb/ee491/parboil/datasets/sgemm/medium/input/matrix2.txt /home/aditya/Projects/iitb/ee491/parboil/datasets/sgemm/medium/input/matrix2t.txt
+gridConf: (8, 66)
+blockConf: (16, 8)
+sGridConf: (8, 66)
+GFLOPs = 846.975
+IO        : 0.357230
+Kernel    : 0.002533
+Copy      : 0.002466
+Driver    : 0.000673
+Compute   : 0.065009
+CPU/Kernel Overlap: 0.000688
+Timer Wall Time: 0.427935
+Running process 1
+Execution took 1.4272799491882324 seconds
+Running process 2
+Execution took 0.46483516693115234 seconds
+Running process 3
+Execution took 0.4645235538482666 seconds
+Running process 4
+Execution took 0.43536853790283203 seconds
+Running process 5
+Execution took 0.4457530975341797 seconds
