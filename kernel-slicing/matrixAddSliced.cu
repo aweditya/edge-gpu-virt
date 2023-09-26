@@ -100,11 +100,11 @@ int main(int argc, char *argv[])
     }
 
     /* Sliced grid dimension: 8x1 */
-    dim3 sGridConf(width / 2, 1);
+    dim3 sGridConf(width / 4, width / 2);
     dim3 blockOffset(0, 0);
     while (blockOffset.x < gridConf.x && blockOffset.y < gridConf.y)
     {
-        printf("Calling slice with blockOffset (%d, %d)\n", blockOffset.x, blockOffset.y);
+        // printf("Calling slice with blockOffset (%d, %d)\n", blockOffset.x, blockOffset.y);
         MatrixAdd<<<sGridConf, blockConf>>>(d_matA, d_matB, width * width, blockOffset);
         blockOffset.x += sGridConf.x;
         while (blockOffset.x >= gridConf.x)
