@@ -103,22 +103,26 @@ void regtileSgemm(char transa, char transb, int m, int n, int k, float alpha, co
     dim3 gridConf(m / TILE_M, n / TILE_N);
     dim3 blockConf(TILE_N, TILE_TB_HEIGHT);
     dim3 sGridConf(m / (TILE_M * m_slicer), n / (TILE_N * n_slicer));
-    dim3 blockOffset(0, 0);
 
     printf("gridConf: (%d, %d)\n", gridConf.x, gridConf.y);
     printf("blockConf: (%d, %d)\n", blockConf.x, blockConf.y);
     printf("sGridConf: (%d, %d)\n", sGridConf.x, sGridConf.y);
 
-    while (blockOffset.x < m / TILE_M && blockOffset.y < n / TILE_N)
+    for (int i = 0; i < 3; ++i)
     {
-        mysgemmNT<<<sGridConf, blockConf>>>(A, lda, B, ldb, C, ldc, k, alpha, beta, blockOffset);
-        blockOffset.x += sGridConf.x;
-        while (blockOffset.x >= gridConf.x)
+        printf("Iteration %d\n", i);
+        dim3 blockOffset(0, 0);
+        while (blockOffset.x < m / TILE_M && blockOffset.y < n / TILE_N)
         {
-            blockOffset.x -= gridConf.x;
-            blockOffset.y += sGridConf.y;
+            mysgemmNT<<<sGridConf, blockConf>>>(A, lda, B, ldb, C, ldc, k, alpha, beta, blockOffset);
+            blockOffset.x += sGridConf.x;
+            while (blockOffset.x >= gridConf.x)
+            {
+                blockOffset.x -= gridConf.x;
+                blockOffset.y += sGridConf.y;
+            }
         }
-    }
 
-    CHECK_ERROR("mySgemm");
+        CHECK_ERROR("mySgemm");
+    }
 }

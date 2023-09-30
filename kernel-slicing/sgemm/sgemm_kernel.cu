@@ -95,8 +95,12 @@ void regtileSgemm( char transa, char transb, int m, int n, int k, float alpha, c
 
 
   dim3 grid( m/TILE_M, n/TILE_N ), threads( TILE_N, TILE_TB_HEIGHT );
-  mysgemmNT<<<grid, threads>>>( A, lda, B, ldb, C, ldc, k, alpha, beta);
-  CHECK_ERROR("mySgemm");
+  for (int i = 0; i < 3; ++i)
+  {
+    printf("Iteration %d\n", i);
+    mysgemmNT<<<grid, threads>>>( A, lda, B, ldb, C, ldc, k, alpha, beta);
+    CHECK_ERROR("mySgemm");
+  }
 
 }
 
