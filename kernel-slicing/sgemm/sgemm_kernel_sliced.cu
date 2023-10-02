@@ -108,21 +108,17 @@ void regtileSgemm(char transa, char transb, int m, int n, int k, float alpha, co
     printf("blockConf: (%d, %d)\n", blockConf.x, blockConf.y);
     printf("sGridConf: (%d, %d)\n", sGridConf.x, sGridConf.y);
 
-    for (int i = 0; i < 3; ++i)
+    dim3 blockOffset(0, 0);
+    while (blockOffset.x < m / TILE_M && blockOffset.y < n / TILE_N)
     {
-        printf("Iteration %d\n", i);
-        dim3 blockOffset(0, 0);
-        while (blockOffset.x < m / TILE_M && blockOffset.y < n / TILE_N)
+        mysgemmNT<<<sGridConf, blockConf>>>(A, lda, B, ldb, C, ldc, k, alpha, beta, blockOffset);
+        blockOffset.x += sGridConf.x;
+        while (blockOffset.x >= gridConf.x)
         {
-            mysgemmNT<<<sGridConf, blockConf>>>(A, lda, B, ldb, C, ldc, k, alpha, beta, blockOffset);
-            blockOffset.x += sGridConf.x;
-            while (blockOffset.x >= gridConf.x)
-            {
-                blockOffset.x -= gridConf.x;
-                blockOffset.y += sGridConf.y;
-            }
+            blockOffset.x -= gridConf.x;
+            blockOffset.y += sGridConf.y;
         }
-
-        CHECK_ERROR("mySgemm");
     }
+
+    CHECK_ERROR("mySgemm");
 }

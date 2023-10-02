@@ -19,8 +19,8 @@
 #include <vector>
 #include <parboil.h>
 #include <iostream>
-// #include "sgemm_kernel.cu"
-#include "sgemm_kernel_sliced.cu"
+#include "sgemm_kernel.cu"
+// #include "sgemm_kernel_sliced.cu"
 
 // I/O routines
 extern bool readColMajorMatrixFile(const char *fn, int &nr_row, int &nr_col, std::vector<float>&v);
