@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <unistd.h>
-#include <cuda.h>
+#include <cuda_runtime.h>
+#include <pthread.h>
 #include <math.h>
 
 #define CHECK_ERROR(errorMessage)                                               \
@@ -27,10 +28,11 @@ float drand(float lo, float hi)
     return lo + (hi - lo) * rand() / RAND_MAX;
 }
 
-int main(int argc, char *argv[])
+void *launch_kernel(void *thread_args)
 {
-    int width = 16;
-    srand(0);
+    cudaStream_t *stream = (cudaStream_t *)thread_args;
+
+    int width = 4;
 
     /* Grid dimension */
     dim3 gridConf(width, width);
@@ -45,32 +47,24 @@ int main(int argc, char *argv[])
     float *h_matA = (float *)malloc(totalElements * sizeof(float));
     float *h_matB = (float *)malloc(totalElements * sizeof(float));
 
+    if (!(cudaSuccess == cudaMallocHost((void **)&h_matA, totalElements * sizeof(float)))) // allocating memory on CPU
+    {
+        printf("cuda malloc host for h_matA failed!\n");
+        CHECK_ERROR("cudaMallocHost");
+    }
+
+    if (!(cudaSuccess == cudaMallocHost((void **)&h_matB, totalElements * sizeof(float)))) // allocating memory on CPU
+    {
+        printf("cuda malloc host for h_matB failed!\n");
+        CHECK_ERROR("cudaMallocHost");
+    }
+
     /* Initialize matA and matB randomly */
     for (int i = 0; i < totalElements; ++i)
     {
         h_matA[i] = drand(0.0, 1.0);
         h_matB[i] = drand(0.0, 1.0);
     }
-
-    // printf("Printing matA...\n");
-    // for (int row = 0; row < gridConf.x * blockConf.x; ++row)
-    // {
-    //     for (int col = 0; col < gridConf.y * blockConf.y; ++col)
-    //     {
-    //         printf("%lf ", h_matA[row * gridConf.y * blockConf.y + col]);
-    //     }
-    //     printf("\n");
-    // }
-
-    // printf("Printing matB...\n");
-    // for (int row = 0; row < gridConf.x * blockConf.x; ++row)
-    // {
-    //     for (int col = 0; col < gridConf.y * blockConf.y; ++col)
-    //     {
-    //         printf("%lf ", h_matB[row * gridConf.y * blockConf.y + col]);
-    //     }
-    //     printf("\n");
-    // }
 
     /* Allocate device memory for matA and matB */
     float *d_matA, *d_matB;
@@ -87,16 +81,16 @@ int main(int argc, char *argv[])
     }
 
     /* copy data from host to device */
-    if (!(cudaSuccess == cudaMemcpy(d_matA, h_matA, totalElements * sizeof(float), cudaMemcpyHostToDevice)))
+    if (!(cudaSuccess == cudaMemcpyAsync(d_matA, h_matA, totalElements * sizeof(float), cudaMemcpyHostToDevice, *stream)))
     {
-        printf("cudaMemcpy for (d_matA, h_matA) failed!\n");
-        CHECK_ERROR("cudaMemcpy");
+        printf("cudaMemcpyAsync for (d_matA, h_matA) failed!\n");
+        CHECK_ERROR("cudaMemcpyAsync");
     }
 
-    if (!(cudaSuccess == cudaMemcpy(d_matB, h_matB, totalElements * sizeof(float), cudaMemcpyHostToDevice)))
+    if (!(cudaSuccess == cudaMemcpyAsync(d_matB, h_matB, totalElements * sizeof(float), cudaMemcpyHostToDevice, *stream)))
     {
-        printf("cudaMemcpy for (d_matB, h_matB) failed!\n");
-        CHECK_ERROR("cudaMemcpy");
+        printf("cudaMemcpyAsync for (d_matB, h_matB) failed!\n");
+        CHECK_ERROR("cudaMemcpyAsync");
     }
 
     /* Sliced grid dimension: 8x1 */
@@ -105,7 +99,7 @@ int main(int argc, char *argv[])
     while (blockOffset.x < gridConf.x && blockOffset.y < gridConf.y)
     {
         // printf("Calling slice with blockOffset (%d, %d)\n", blockOffset.x, blockOffset.y);
-        MatrixAdd<<<sGridConf, blockConf>>>(d_matA, d_matB, width * width, blockOffset);
+        MatrixAdd<<<sGridConf, blockConf, 0, *stream>>>(d_matA, d_matB, width * width, blockOffset);
         blockOffset.x += sGridConf.x;
         while (blockOffset.x >= gridConf.x)
         {
@@ -115,21 +109,53 @@ int main(int argc, char *argv[])
     }
 
     /* copy result from device to host */
-    if (!(cudaSuccess == cudaMemcpy(h_matA, d_matA, totalElements * sizeof(float), cudaMemcpyDeviceToHost)))
+    if (!(cudaSuccess == cudaMemcpyAsync(h_matA, d_matA, totalElements * sizeof(float), cudaMemcpyDeviceToHost, *stream)))
     {
         printf("cudaMemcpy for (h_matA, d_matA) failed!\n");
         CHECK_ERROR("cudaMemcpy");
     }
 
-    // printf("Printing matA+matB...\n");
-    // for (int row = 0; row < gridConf.x * blockConf.x; ++row)
-    // {
-    //     for (int col = 0; col < gridConf.y * blockConf.y; ++col)
-    //     {
-    //         printf("%lf ", h_matA[row * gridConf.y * blockConf.y + col]);
-    //     }
-    //     printf("\n");
-    // }
+    cudaFreeHost(h_matA);
+    cudaFreeHost(h_matB);
+    cudaFree(d_matA);
+    cudaFree(d_matB);
+
+    return NULL;
+}
+
+int main(int argc, char *argv[])
+{
+    srand(0);
+
+    const int num_threads = 4;
+    pthread_t threads[num_threads];
+    cudaStream_t streams[num_threads];
+
+    for (int i = 0; i < num_threads; ++i)
+        cudaStreamCreate(&streams[i]);
+
+    for (int i = 0; i < num_threads; ++i)
+    {
+        if (pthread_create(&threads[i], NULL, launch_kernel, &streams[i]))
+        {
+            fprintf(stderr, "Error creating threadn");
+            return 1;
+        }
+    }
+
+    for (int i = 0; i < num_threads; ++i)
+    {
+        if (pthread_join(threads[i], NULL))
+        {
+            fprintf(stderr, "Error joining threadn");
+            return 2;
+        }
+    }
+
+    for (int i = 0; i < num_threads; ++i)
+        cudaStreamDestroy(streams[i]);
+
+    cudaDeviceReset();
 
     return 0;
 }
