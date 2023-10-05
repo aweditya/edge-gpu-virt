@@ -1,3 +1,4 @@
+#include <iostream>
 #include <stdio.h>
 #include <unistd.h>
 #include <cuda_runtime.h>
@@ -32,7 +33,7 @@ void *launch_kernel(void *thread_args)
 {
     cudaStream_t *stream = (cudaStream_t *)thread_args;
 
-    int width = 4;
+    int width = 16;
 
     /* Grid dimension */
     dim3 gridConf(width, width);
@@ -44,18 +45,15 @@ void *launch_kernel(void *thread_args)
     printf("Matrices A and B of dimension (%d, %d) are being added\n", gridConf.x * blockConf.x, gridConf.y * blockConf.y);
 
     /* Allocate host memory for matA and matB */
-    float *h_matA = (float *)malloc(totalElements * sizeof(float));
-    float *h_matB = (float *)malloc(totalElements * sizeof(float));
+    float *h_matA, *h_matB;
 
     if (!(cudaSuccess == cudaMallocHost((void **)&h_matA, totalElements * sizeof(float)))) // allocating memory on CPU
     {
-        printf("cuda malloc host for h_matA failed!\n");
         CHECK_ERROR("cudaMallocHost");
     }
 
     if (!(cudaSuccess == cudaMallocHost((void **)&h_matB, totalElements * sizeof(float)))) // allocating memory on CPU
     {
-        printf("cuda malloc host for h_matB failed!\n");
         CHECK_ERROR("cudaMallocHost");
     }
 
@@ -71,30 +69,26 @@ void *launch_kernel(void *thread_args)
 
     if (!(cudaSuccess == cudaMalloc((void **)&d_matA, totalElements * sizeof(float)))) // allocating memory on GPU
     {
-        printf("cuda malloc for d_matA failed!\n");
         CHECK_ERROR("cudaMalloc");
     }
     if (!(cudaSuccess == cudaMalloc((void **)&d_matB, totalElements * sizeof(float)))) // allocating memory on GPU
     {
-        printf("cuda malloc for d_matB failed!\n");
         CHECK_ERROR("cudaMalloc");
     }
 
     /* copy data from host to device */
     if (!(cudaSuccess == cudaMemcpyAsync(d_matA, h_matA, totalElements * sizeof(float), cudaMemcpyHostToDevice, *stream)))
     {
-        printf("cudaMemcpyAsync for (d_matA, h_matA) failed!\n");
         CHECK_ERROR("cudaMemcpyAsync");
     }
 
     if (!(cudaSuccess == cudaMemcpyAsync(d_matB, h_matB, totalElements * sizeof(float), cudaMemcpyHostToDevice, *stream)))
     {
-        printf("cudaMemcpyAsync for (d_matB, h_matB) failed!\n");
         CHECK_ERROR("cudaMemcpyAsync");
     }
 
     /* Sliced grid dimension: 8x1 */
-    dim3 sGridConf(width / 4, width / 2);
+    dim3 sGridConf(width, width);
     dim3 blockOffset(0, 0);
     while (blockOffset.x < gridConf.x && blockOffset.y < gridConf.y)
     {
@@ -111,7 +105,6 @@ void *launch_kernel(void *thread_args)
     /* copy result from device to host */
     if (!(cudaSuccess == cudaMemcpyAsync(h_matA, d_matA, totalElements * sizeof(float), cudaMemcpyDeviceToHost, *stream)))
     {
-        printf("cudaMemcpy for (h_matA, d_matA) failed!\n");
         CHECK_ERROR("cudaMemcpy");
     }
 
@@ -126,14 +119,27 @@ void *launch_kernel(void *thread_args)
 int main(int argc, char *argv[])
 {
     srand(0);
+    float elapsed_time;
 
-    const int num_threads = 4;
+    const int num_threads = 8;
     pthread_t threads[num_threads];
     cudaStream_t streams[num_threads];
+
+    cudaEvent_t start_event, stop_event;
+    if (!(cudaSuccess == cudaEventCreate(&start_event)))
+    {
+        CHECK_ERROR("cudaEventCreate");
+    }
+
+    if (!(cudaSuccess == cudaEventCreate(&stop_event)))
+    {
+        CHECK_ERROR("cudaEventCreate");
+    }
 
     for (int i = 0; i < num_threads; ++i)
         cudaStreamCreate(&streams[i]);
 
+    cudaEventRecord(start_event, 0);
     for (int i = 0; i < num_threads; ++i)
     {
         if (pthread_create(&threads[i], NULL, launch_kernel, &streams[i]))
@@ -152,10 +158,21 @@ int main(int argc, char *argv[])
         }
     }
 
+    if (!(cudaSuccess == cudaEventRecord(stop_event, 0)))
+    {
+        CHECK_ERROR("cudaEventRecord");
+    }
+
+    cudaEventSynchronize(stop_event);
+    cudaEventElapsedTime(&elapsed_time, start_event, stop_event);
+
     for (int i = 0; i < num_threads; ++i)
         cudaStreamDestroy(streams[i]);
 
+    cudaEventDestroy(start_event);
+    cudaEventDestroy(stop_event);
     cudaDeviceReset();
 
+    printf("Measured time for sample = %.3fms\n", elapsed_time);
     return 0;
 }
