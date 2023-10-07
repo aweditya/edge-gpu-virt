@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <cuda_runtime.h>
-#include <pthread.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -127,7 +126,6 @@ int main(int argc, char *argv[])
     float elapsed_time;
 
     const int num_threads = 4;
-    pthread_t threads[num_threads];
     thread_args_t args[num_threads];
 
     cudaEvent_t start_event, stop_event;
@@ -161,20 +159,7 @@ int main(int argc, char *argv[])
     cudaEventRecord(start_event, 0);
     for (int i = 0; i < num_threads; ++i)
     {
-        if (pthread_create(&threads[i], NULL, launch_kernel, &args[i]))
-        {
-            fprintf(stderr, "Error creating threadn");
-            return 1;
-        }
-    }
-
-    for (int i = 0; i < num_threads; ++i)
-    {
-        if (pthread_join(threads[i], NULL))
-        {
-            fprintf(stderr, "Error joining threadn");
-            return 2;
-        }
+        launch_kernel(&args[i]);
     }
 
     if (!(cudaSuccess == cudaEventRecord(stop_event, 0)))
