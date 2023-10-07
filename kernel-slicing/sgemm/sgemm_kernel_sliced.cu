@@ -78,7 +78,7 @@ __global__ void mysgemmNT(const float *A, int lda, const float *B, int ldb, floa
     }
 }
 
-void regtileSgemm(char transa, char transb, int m, int n, int k, float alpha, const float *A, int lda, const float *B, int ldb, float beta, float *C, int ldc)
+void regtileSgemm(char transa, char transb, int m, int n, int k, float alpha, const float *A, int lda, const float *B, int ldb, float beta, float *C, int ldc, cudaStream_t stream)
 {
     if ((transa != 'N') && (transa != 'n'))
     {
@@ -111,7 +111,7 @@ void regtileSgemm(char transa, char transb, int m, int n, int k, float alpha, co
     dim3 blockOffset(0, 0);
     while (blockOffset.x < m / TILE_M && blockOffset.y < n / TILE_N)
     {
-        mysgemmNT<<<sGridConf, blockConf>>>(A, lda, B, ldb, C, ldc, k, alpha, beta, blockOffset);
+        mysgemmNT<<<sGridConf, blockConf, 0, stream>>>(A, lda, B, ldb, C, ldc, k, alpha, beta, blockOffset);
         blockOffset.x += sGridConf.x;
         while (blockOffset.x >= gridConf.x)
         {
