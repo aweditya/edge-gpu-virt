@@ -20,6 +20,7 @@ extern "C" void computeGold(float *, const float *, const float *, unsigned int,
 
 typedef struct thread_args
 {
+    cudaStream_t *stream;
     size_t A_sz, B_sz, C_sz;
     int matArow, matAcol;
     int matBrow, matBcol;
@@ -61,23 +62,23 @@ void *launch_kernel(void *thread_args)
     }
 
     // Copy A and B^T into device memory
-    if (!(cudaSuccess == cudaMemcpy(dA, &(args->matA.front()), args->A_sz, cudaMemcpyHostToDevice)))
+    if (!(cudaSuccess == cudaMemcpyAsync(dA, &(args->matA.front()), args->A_sz, cudaMemcpyHostToDevice, *(args->stream))))
     {
-        CHECK_ERROR("cudaMemcpy");
+        CHECK_ERROR("cudaMemcpyAsync");
     }
 
-    if (!(cudaSuccess == cudaMemcpy(dB, &(args->matBT.front()), args->B_sz, cudaMemcpyHostToDevice)))
+    if (!(cudaSuccess == cudaMemcpyAsync(dB, &(args->matBT.front()), args->B_sz, cudaMemcpyHostToDevice, *(args->stream))))
     {
-        CHECK_ERROR("cudaMemcpy");
+        CHECK_ERROR("cudaMemcpyAsync");
     }
 
     // Use standard sgemm interface
     regtileSgemm('N', 'T', args->matArow, args->matBcol, args->matAcol, 1.0f,
-                 dA, args->matArow, dB, args->matBcol, 0.0f, dC, args->matArow, nullptr);
+                 dA, args->matArow, dB, args->matBcol, 0.0f, dC, args->matArow, args->stream);
 
-    if (!(cudaSuccess == cudaMemcpy(&matC.front(), dC, args->C_sz, cudaMemcpyDeviceToHost)))
+    if (!(cudaSuccess == cudaMemcpyAsync(&matC.front(), dC, args->C_sz, cudaMemcpyDeviceToHost, *(args->stream))))
     {
-        CHECK_ERROR("cudaMemcpy");
+        CHECK_ERROR("cudaMemcpyAsync");
     }
 
     cudaFree(dA);
@@ -140,6 +141,10 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < num_threads; ++i)
     {
+        if (!(cudaSuccess == cudaStreamCreate(args[i].stream)))
+        {
+            CHECK_ERROR("cudaStreamCreate");
+        }
         args[i].A_sz = A_sz;
         args[i].B_sz = B_sz;
         args[i].C_sz = C_sz;
@@ -164,6 +169,9 @@ int main(int argc, char *argv[])
 
     cudaEventSynchronize(stop_event);
     cudaEventElapsedTime(&elapsed_time, start_event, stop_event);
+
+    for (int i = 0; i < num_threads; ++i)
+        cudaStreamDestroy(*(args[i].stream));
 
     cudaEventDestroy(start_event);
     cudaEventDestroy(stop_event);

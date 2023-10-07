@@ -75,7 +75,7 @@ void *launch_kernel(void *thread_args)
 
     // Use standard sgemm interface
     regtileSgemm('N', 'T', args->matArow, args->matBcol, args->matAcol, 1.0f,
-                 dA, args->matArow, dB, args->matBcol, 0.0f, dC, args->matArow, *(args->stream));
+                 dA, args->matArow, dB, args->matBcol, 0.0f, dC, args->matArow, args->stream);
 
     if (!(cudaSuccess == cudaMemcpyAsync(&matC.front(), dC, args->C_sz, cudaMemcpyDeviceToHost, *(args->stream))))
     {
