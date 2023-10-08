@@ -92,7 +92,7 @@ void regtileSgemm(char transa, char transb, int m, int n, int k, float alpha, co
         return;
     }
 
-    int m_slicer = 2, n_slicer = 4;
+    int m_slicer = 2, n_slicer = 6;
     // In this code we assume the matrix sizes are multiple of tile size
     if ((m % (TILE_M * m_slicer)) || (n % (TILE_N * n_slicer)))
     {

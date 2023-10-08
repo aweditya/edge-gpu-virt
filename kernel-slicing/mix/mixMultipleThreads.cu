@@ -227,10 +227,6 @@ void *launch_kernel_mriq(void *thread_args)
 
         cudaDeviceSynchronize();
 
-        cudaFree(x_d);
-        cudaFree(y_d);
-        cudaFree(z_d);
-
         if (!(cudaSuccess == cudaMemcpyAsync(args->Qr, Qr_d, args->numX * sizeof(float), cudaMemcpyDeviceToHost, *(args->stream))))
         {
             CHECK_ERROR("cudaMemcpyAsync");
@@ -241,11 +237,14 @@ void *launch_kernel_mriq(void *thread_args)
             CHECK_ERROR("cudaMemcpyAsync");
         }
 
-        free(kVals);
+        cudaFree(x_d);
+        cudaFree(y_d);
+        cudaFree(z_d);
         cudaFree(Qr_d);
         cudaFree(Qi_d);
     }
 
+    free(kVals);
     return NULL;
 }
 
@@ -402,17 +401,17 @@ int main(int argc, char *argv[])
 
     printf("Measured time for sample = %.3fms\n", elapsed_time);
 
-    free(phiMag);
-    free(kx);
-    free(ky);
-    free(kz);
-    free(x);
-    free(y);
-    free(z);
-    free(phiR);
-    free(phiI);
-    free(Qr);
-    free(Qi);
+    // free(phiMag);
+    // free(kx);
+    // free(ky);
+    // free(kz);
+    // free(x);
+    // free(y);
+    // free(z);
+    // free(phiR);
+    // free(phiI);
+    // free(Qr);
+    // free(Qi);
 
     return 0;
 }
