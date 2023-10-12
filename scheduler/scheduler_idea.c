@@ -3,46 +3,46 @@
 #include <string.h>
 #include <pthread.h>
 
-typedef struct kernel_args
+typedef struct kernel_control_block
 {
     pthread_mutex_t kernel_lock;
     pthread_cond_t kernel_signal;
     int state;
     int slices;
     char name[32];
-} kernel_args_t;
+} kernel_control_block_t;
 
-void kernel_init(kernel_args_t *kernel, int slices, char *name)
+void kernel_control_block_init(kernel_control_block_t *kcb, int slices, char *name)
 {
-    pthread_mutex_init(&(kernel->kernel_lock), NULL);
-    pthread_cond_init(&(kernel->kernel_signal), NULL);
-    kernel->state = 0;
-    kernel->slices = slices;
-    memset(kernel->name, 0, 32);
-    strcpy(kernel->name, name);
+    pthread_mutex_init(&(kcb->kernel_lock), NULL);
+    pthread_cond_init(&(kcb->kernel_signal), NULL);
+    kcb->state = 0;
+    kcb->slices = slices;
+    memset(kcb->name, 0, 32);
+    strcpy(kcb->name, name);
 }
 
-void kernel_destroy(kernel_args_t *kernel)
+void kernel_control_block_destroy(kernel_control_block_t *kcb)
 {
-    pthread_mutex_destroy(&(kernel->kernel_lock));
-    pthread_cond_destroy(&(kernel->kernel_signal));
+    pthread_mutex_destroy(&(kcb->kernel_lock));
+    pthread_cond_destroy(&(kcb->kernel_signal));
 }
 
-void *kernel_launch(void *args)
+void *kernel_control_block_launch(void *args)
 {
-    kernel_args_t *kernel = (kernel_args_t *)args;
+    kernel_control_block_t *kcb = (kernel_control_block_t *)args;
 
-    while (kernel->slices)
+    while (kcb->slices)
     {
-        pthread_mutex_lock(&(kernel->kernel_lock));
-        while (kernel->state == 0)
-            pthread_cond_wait(&(kernel->kernel_signal), &(kernel->kernel_lock));
+        pthread_mutex_lock(&(kcb->kernel_lock));
+        while (kcb->state == 0)
+            pthread_cond_wait(&(kcb->kernel_signal), &(kcb->kernel_lock));
 
-        printf("Hello! I'm kernel %s\n", kernel->name);
-        pthread_mutex_unlock(&(kernel->kernel_lock));
+        printf("Hello! I'm kernel %s\n", kcb->name);
+        pthread_mutex_unlock(&(kcb->kernel_lock));
 
-        kernel->state = 0;
-        kernel->slices--;
+        kcb->state = 0;
+        kcb->slices--;
     }
     return NULL;
 }
@@ -51,17 +51,17 @@ int main()
 {
     const int num_threads = 2;
     pthread_t kernel_threads[2];
-    kernel_args_t kernels[num_threads];
+    kernel_control_block_t kcbs[num_threads];
     char *names[] = {"sgemmNT", "mriq"};
 
     for (int i = 0; i < num_threads; ++i)
     {
-        kernel_init(&(kernels[i]), 5 * (i + 1), names[i]);
+        kernel_control_block_init(&(kcbs[i]), 5 * (i + 1), names[i]);
     }
 
     for (int i = 0; i < num_threads; ++i)
     {
-        pthread_create(&kernel_threads[i], NULL, kernel_launch, &(kernels[i]));
+        pthread_create(&kernel_threads[i], NULL, kernel_control_block_launch, &(kcbs[i]));
     }
 
     int launch = 1;
@@ -69,22 +69,22 @@ int main()
     {
         if (launch % 3 == 0)
         {
-            pthread_mutex_lock(&(kernels[1].kernel_lock));
-            kernels[1].state = 1;
-            pthread_cond_signal(&(kernels[1].kernel_signal));
-            pthread_mutex_unlock(&(kernels[1].kernel_lock));
+            pthread_mutex_lock(&(kcbs[1].kernel_lock));
+            kcbs[1].state = 1;
+            pthread_cond_signal(&(kcbs[1].kernel_signal));
+            pthread_mutex_unlock(&(kcbs[1].kernel_lock));
         }
         else
         {
-            pthread_mutex_lock(&(kernels[0].kernel_lock));
-            kernels[0].state = 1;
-            pthread_cond_signal(&(kernels[0].kernel_signal));
-            pthread_mutex_unlock(&(kernels[0].kernel_lock));
+            pthread_mutex_lock(&(kcbs[0].kernel_lock));
+            kcbs[0].state = 1;
+            pthread_cond_signal(&(kcbs[0].kernel_signal));
+            pthread_mutex_unlock(&(kcbs[0].kernel_lock));
         }
 
         launch++;
 
-        if (kernels[0].slices == 0 && kernels[1].slices == 0)
+        if (kcbs[0].slices == 0 && kcbs[1].slices == 0)
             launch = 0;
     }
 
@@ -95,7 +95,7 @@ int main()
 
     for (int i = 0; i < num_threads; ++i)
     {
-        kernel_destroy(&(kernels[i]));
+        kernel_control_block_destroy(&(kcbs[i]));
     }
 
     return 0;
