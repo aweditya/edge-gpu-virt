@@ -81,7 +81,11 @@ int main()
             pthread_cond_signal(&(kernels[0].kernel_signal));
             pthread_mutex_unlock(&(kernels[0].kernel_lock));
         }
+
         launch++;
+
+        if (kernels[0].slices == 0 && kernels[1].slices == 0)
+            launch = 0;
     }
 
     for (int i = 0; i < num_threads; ++i)
