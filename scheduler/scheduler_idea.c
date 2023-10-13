@@ -50,7 +50,7 @@ void *kernel_control_block_launch(void *args)
 int main()
 {
     const int num_threads = 2;
-    pthread_t kernel_threads[2];
+    pthread_t kernel_threads[num_threads];
     kernel_control_block_t kcbs[num_threads];
     char *names[] = {"sgemmNT", "mriq"};
 
