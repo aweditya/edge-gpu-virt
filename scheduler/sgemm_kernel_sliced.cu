@@ -120,8 +120,10 @@ void regtileSgemm(char transa, char transb, int m, int n, int k, float alpha, co
         pthread_mutex_lock(&(kcb->kernel_lock));
         printf("Got the sgemm lock\n");
         while (kcb->state != RUNNING)
+        {
             printf("waiting for sgemm signal in state %d\n", kcb->state);
             pthread_cond_wait(&(kcb->kernel_signal), &(kcb->kernel_lock));
+        }
 
         printf("Got the sgemm signal!\n");
         if (stream == nullptr)

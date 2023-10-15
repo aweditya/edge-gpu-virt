@@ -274,8 +274,9 @@ int main(int argc, char **argv)
         {
             printf("Let sgemm run\n");
             pthread_mutex_lock(&(sgemm_args[0].kcb->kernel_lock));
-            printf("Got the sgeem lock\n");
+            printf("Got the sgemm lock\n");
             sgemm_args[0].kcb->state = RUNNING;
+            printf("Set sgemm state to RUNNING\n");
             pthread_mutex_unlock(&(sgemm_args[0].kcb->kernel_lock));
             printf("Released the sgeem lock\n");
             pthread_cond_signal(&(sgemm_args[0].kcb->kernel_signal));
@@ -287,6 +288,7 @@ int main(int argc, char **argv)
             pthread_mutex_lock(&(mriq_args[0].kcb->kernel_lock));
             printf("Got the mriq lock\n");
             mriq_args[0].kcb->state = RUNNING;
+            printf("Set mriq state to RUNNING\n");
             pthread_mutex_unlock(&(mriq_args[0].kcb->kernel_lock));
             printf("Released the mriq lock\n");
             pthread_cond_signal(&(mriq_args[0].kcb->kernel_signal));
