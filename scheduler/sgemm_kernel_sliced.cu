@@ -106,27 +106,33 @@ void regtileSgemm(char transa, char transb, int m, int n, int k, float alpha, co
     dim3 blockConf(TILE_N, TILE_TB_HEIGHT);
     dim3 sGridConf(m / (TILE_M * m_slicer), n / (TILE_N * n_slicer));
 
+    kcb->slices = (gridConf.x * gridConf.y) / (sGridConf.x * sGridConf.y);
+
     printf("gridConf: (%d, %d)\n", gridConf.x, gridConf.y);
     printf("blockConf: (%d, %d)\n", blockConf.x, blockConf.y);
     printf("sGridConf: (%d, %d)\n", sGridConf.x, sGridConf.y);
-
-    kcb->slices = (gridConf.x * gridConf.y) / (sGridConf.x * sGridConf.y);
+    printf("number of slices: %d\n", kcb->slices);
 
     dim3 blockOffset(0, 0);
     while (blockOffset.x < m / TILE_M && blockOffset.y < n / TILE_N)
     {
+        printf("Inside slicing launch loop\n");
         pthread_mutex_lock(&(kcb->kernel_lock));
+        printf("Got the sgemm lock\n");
         while (kcb->state != RUNNING)
+            printf("waiting for sgemm signal in state %d\n", kcb->state);
             pthread_cond_wait(&(kcb->kernel_signal), &(kcb->kernel_lock));
 
+        printf("Got the sgemm signal!\n");
         if (stream == nullptr)
             mysgemmNT<<<sGridConf, blockConf>>>(A, lda, B, ldb, C, ldc, k, alpha, beta, blockOffset);
         else
             mysgemmNT<<<sGridConf, blockConf, 0, *stream>>>(A, lda, B, ldb, C, ldc, k, alpha, beta, blockOffset);
+        printf("Launched an sgemm slice\n");
+        pthread_mutex_unlock(&(kcb->kernel_lock));
 
         kcb->state = READY;
         kcb->slices--;
-        pthread_mutex_unlock(&(kcb->kernel_lock));
 
         blockOffset.x += sGridConf.x;
         while (blockOffset.x >= gridConf.x)
@@ -134,6 +140,7 @@ void regtileSgemm(char transa, char transb, int m, int n, int k, float alpha, co
             blockOffset.x -= gridConf.x;
             blockOffset.y += sGridConf.y;
         }
+        printf("Changing sgemm state back to READY with %d slices remaining and blockOffset = (%d, %d)\n", kcb->slices, blockOffset.x, blockOffset.y);
     }
 
     CHECK_ERROR("mySgemm");
