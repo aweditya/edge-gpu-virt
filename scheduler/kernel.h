@@ -45,7 +45,7 @@ void kernel_control_block_init(kernel_control_block_t *kcb)
     pthread_mutex_init(&(kcb->kernel_lock), NULL);
     pthread_cond_init(&(kcb->kernel_signal), NULL);
     kcb->state = READY;
-    kcb->slices = 0;
+    kcb->slices = -1;
 }
 
 void kernel_control_block_destroy(kernel_control_block_t *kcb)

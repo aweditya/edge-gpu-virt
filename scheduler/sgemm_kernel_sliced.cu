@@ -116,21 +116,22 @@ void regtileSgemm(char transa, char transb, int m, int n, int k, float alpha, co
     dim3 blockOffset(0, 0);
     while (blockOffset.x < m / TILE_M && blockOffset.y < n / TILE_N)
     {
-        printf("Inside slicing launch loop\n");
         pthread_mutex_lock(&(kcb->kernel_lock));
-        printf("Got the sgemm lock\n");
         while (kcb->state != RUNNING)
         {
-            printf("waiting for sgemm signal in state %d\n", kcb->state);
             pthread_cond_wait(&(kcb->kernel_signal), &(kcb->kernel_lock));
         }
 
-        printf("Got the sgemm signal!\n");
         if (stream == nullptr)
+        {
+
             mysgemmNT<<<sGridConf, blockConf>>>(A, lda, B, ldb, C, ldc, k, alpha, beta, blockOffset);
+        }
         else
+        {
+
             mysgemmNT<<<sGridConf, blockConf, 0, *stream>>>(A, lda, B, ldb, C, ldc, k, alpha, beta, blockOffset);
-        printf("Launched an sgemm slice\n");
+        }
         pthread_mutex_unlock(&(kcb->kernel_lock));
 
         kcb->state = READY;
@@ -142,7 +143,6 @@ void regtileSgemm(char transa, char transb, int m, int n, int k, float alpha, co
             blockOffset.x -= gridConf.x;
             blockOffset.y += sGridConf.y;
         }
-        printf("Changing sgemm state back to READY with %d slices remaining and blockOffset = (%d, %d)\n", kcb->slices, blockOffset.x, blockOffset.y);
     }
 
     CHECK_ERROR("mySgemm");

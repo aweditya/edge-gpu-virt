@@ -128,20 +128,23 @@ void computePhiMag_GPU(int numK, float *phiR_d, float *phiI_d, float *phiMag_d, 
     {
         pthread_mutex_lock(&(kcb->kernel_lock));
         while (kcb->state != RUNNING)
+        {
             pthread_cond_wait(&(kcb->kernel_signal), &(kcb->kernel_lock));
+        }
 
-        printf("Got the mriq signal!\n");
         if (stream == nullptr)
+        {
             ComputePhiMag_GPU<<<sGridConf, blockConf>>>(phiR_d, phiI_d, phiMag_d, numK, blockOffset);
+        }
         else
+        {
             ComputePhiMag_GPU<<<sGridConf, blockConf, 0, *stream>>>(phiR_d, phiI_d, phiMag_d, numK, blockOffset);
-        printf("Launched an mriq kernel\n");
+        }
         pthread_mutex_unlock(&(kcb->kernel_lock));
 
         kcb->state = READY;
         kcb->slices--;
         blockOffset.x += sGridConf.x;
-        printf("Changing state back to READY with %d slices remaining and blockOffset = (%d, %d)\n", kcb->slices, blockOffset.x, blockOffset.y);
     }
 }
 
@@ -181,9 +184,14 @@ void computeQ_GPU(int numK, int numX,
         while (blockOffset.x < gridConf.x)
         {
             if (stream == nullptr)
+            {
+
                 ComputeQ_GPU<<<sGridConf, blockConf>>>(numK, QGridBase, x_d, y_d, z_d, Qr_d, Qi_d, blockOffset);
+            }
             else
+            {
                 ComputeQ_GPU<<<sGridConf, blockConf, 0, *stream>>>(numK, QGridBase, x_d, y_d, z_d, Qr_d, Qi_d, blockOffset);
+            }
             blockOffset.x += sGridConf.x;
         }
     }
