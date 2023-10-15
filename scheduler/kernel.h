@@ -6,7 +6,7 @@ typedef enum
     RUNNING
 } KSTATE;
 
-typedef struct 
+typedef struct kernel_control_block
 {
     pthread_mutex_t kernel_lock;
     pthread_cond_t kernel_signal;
@@ -14,11 +14,11 @@ typedef struct
     int slices;
 } kernel_control_block_t;
 
-typedef struct
+typedef struct sgemm_args
 {
     kernel_control_block_t *kcb;
 
-    cudaStream_t *stream;
+    cudaStream_t stream;
     size_t A_sz, B_sz, C_sz;
     int matArow, matAcol;
     int matBrow, matBcol;
@@ -30,7 +30,7 @@ typedef struct mriq_args
 {
     kernel_control_block_t *kcb;
 
-    cudaStream_t *stream;
+    cudaStream_t stream;
     int numX, numK;      /* Number of X and K values */
     float *kx, *ky, *kz; /* K trajectory (3D vectors) */
     float *x, *y, *z;    /* X coordinates (3D vectors) */

@@ -53,14 +53,14 @@ void *launch_kernel_sgemm(void *thread_args)
     checkCudaErrors(cudaMalloc((void **)&dC, args->C_sz));
 
     // Copy A and B^T into device memory
-    checkCudaErrors(cudaMemcpyAsync(dA, &(args->matA.front()), args->A_sz, cudaMemcpyHostToDevice, *(args->stream)));
-    checkCudaErrors(cudaMemcpyAsync(dB, &(args->matBT.front()), args->B_sz, cudaMemcpyHostToDevice, *(args->stream)));
+    checkCudaErrors(cudaMemcpyAsync(dA, &(args->matA.front()), args->A_sz, cudaMemcpyHostToDevice, args->stream));
+    checkCudaErrors(cudaMemcpyAsync(dB, &(args->matBT.front()), args->B_sz, cudaMemcpyHostToDevice, args->stream));
 
     // Use standard sgemm interface
     regtileSgemm('N', 'T', args->matArow, args->matBcol, args->matAcol, 1.0f,
-                 dA, args->matArow, dB, args->matBcol, 0.0f, dC, args->matArow, args->stream, args->kcb);
+                 dA, args->matArow, dB, args->matBcol, 0.0f, dC, args->matArow, &(args->stream), args->kcb);
 
-    checkCudaErrors(cudaMemcpyAsync(&matC.front(), dC, args->C_sz, cudaMemcpyDeviceToHost, *(args->stream)));
+    checkCudaErrors(cudaMemcpyAsync(&matC.front(), dC, args->C_sz, cudaMemcpyDeviceToHost, args->stream));
 
     checkCudaErrors(cudaFree(dA));
     checkCudaErrors(cudaFree(dB));
@@ -85,18 +85,18 @@ void *launch_kernel_mriq(void *thread_args)
         checkCudaErrors(cudaMalloc((void **)&phiR_d, args->numK * sizeof(float)));
         checkCudaErrors(cudaMalloc((void **)&phiI_d, args->numK * sizeof(float)));
 
-        checkCudaErrors(cudaMemcpyAsync(phiR_d, args->phiR, args->numK * sizeof(float), cudaMemcpyHostToDevice, *(args->stream)));
-        checkCudaErrors(cudaMemcpyAsync(phiI_d, args->phiI, args->numK * sizeof(float), cudaMemcpyHostToDevice, *(args->stream)));
+        checkCudaErrors(cudaMemcpyAsync(phiR_d, args->phiR, args->numK * sizeof(float), cudaMemcpyHostToDevice, args->stream));
+        checkCudaErrors(cudaMemcpyAsync(phiI_d, args->phiI, args->numK * sizeof(float), cudaMemcpyHostToDevice, args->stream));
 
         checkCudaErrors(cudaMalloc((void **)&phiMag_d, args->numK * sizeof(float)));
 
         cudaDeviceSynchronize();
 
-        computePhiMag_GPU(args->numK, phiR_d, phiI_d, phiMag_d, args->stream, args->kcb);
+        computePhiMag_GPU(args->numK, phiR_d, phiI_d, phiMag_d, &(args->stream), args->kcb);
 
         cudaDeviceSynchronize();
 
-        checkCudaErrors(cudaMemcpyAsync(args->phiMag, phiMag_d, args->numK * sizeof(float), cudaMemcpyDeviceToHost, *(args->stream)));
+        checkCudaErrors(cudaMemcpyAsync(args->phiMag, phiMag_d, args->numK * sizeof(float), cudaMemcpyDeviceToHost, args->stream));
 
         checkCudaErrors(cudaFree(phiMag_d));
         checkCudaErrors(cudaFree(phiR_d));
@@ -119,28 +119,28 @@ void *launch_kernel_mriq(void *thread_args)
     //     float *Qr_d, *Qi_d;
 
     //     checkCudaErrors(cudaMalloc((void **)&x_d, args->numX * sizeof(float)));
-    //     checkCudaErrors(cudaMemcpyAsync(x_d, args->x, args->numX * sizeof(float), cudaMemcpyHostToDevice, *(args->stream)));
+    //     checkCudaErrors(cudaMemcpyAsync(x_d, args->x, args->numX * sizeof(float), cudaMemcpyHostToDevice, args->stream));
 
     //     checkCudaErrors(cudaMalloc((void **)&y_d, args->numX * sizeof(float)));
-    //     checkCudaErrors(cudaMemcpyAsync(y_d, args->y, args->numX * sizeof(float), cudaMemcpyHostToDevice, *(args->stream)));
+    //     checkCudaErrors(cudaMemcpyAsync(y_d, args->y, args->numX * sizeof(float), cudaMemcpyHostToDevice, args->stream));
 
     //     checkCudaErrors(cudaMalloc((void **)&z_d, args->numX * sizeof(float)));
-    //     checkCudaErrors(cudaMemcpyAsync(z_d, args->z, args->numX * sizeof(float), cudaMemcpyHostToDevice, *(args->stream)));
+    //     checkCudaErrors(cudaMemcpyAsync(z_d, args->z, args->numX * sizeof(float), cudaMemcpyHostToDevice, args->stream));
 
     //     checkCudaErrors(cudaMalloc((void **)&Qr_d, args->numX * sizeof(float)));
-    //     checkCudaErrors(cudaMemsetAsync((void *)Qr_d, 0, args->numX * sizeof(float), *(args->stream)));
+    //     checkCudaErrors(cudaMemsetAsync((void *)Qr_d, 0, args->numX * sizeof(float), args->stream));
 
     //     checkCudaErrors(cudaMalloc((void **)&Qi_d, args->numX * sizeof(float)));
-    //     checkCudaErrors(cudaMemsetAsync((void *)Qi_d, 0, args->numX * sizeof(float), *(args->stream)));
+    //     checkCudaErrors(cudaMemsetAsync((void *)Qi_d, 0, args->numX * sizeof(float), args->stream));
 
     //     cudaDeviceSynchronize();
 
-    //     computeQ_GPU(args->numK, args->numX, x_d, y_d, z_d, kVals, Qr_d, Qi_d, args->stream, args->kcb);
+    //     computeQ_GPU(args->numK, args->numX, x_d, y_d, z_d, kVals, Qr_d, Qi_d, &args->stream, args->kcb);
 
     //     cudaDeviceSynchronize();
 
-    //     checkCudaErrors(cudaMemcpyAsync(args->Qr, Qr_d, args->numX * sizeof(float), cudaMemcpyDeviceToHost, *(args->stream)));
-    //     checkCudaErrors(cudaMemcpyAsync(args->Qi, Qi_d, args->numX * sizeof(float), cudaMemcpyDeviceToHost, *(args->stream)));
+    //     checkCudaErrors(cudaMemcpyAsync(args->Qr, Qr_d, args->numX * sizeof(float), cudaMemcpyDeviceToHost, args->stream));
+    //     checkCudaErrors(cudaMemcpyAsync(args->Qi, Qi_d, args->numX * sizeof(float), cudaMemcpyDeviceToHost, args->stream));
 
     //     checkCudaErrors(cudaFree(x_d));
     //     checkCudaErrors(cudaFree(y_d));
@@ -214,21 +214,14 @@ int main(int argc, char **argv)
     sgemm_args_t sgemm_args[num_threads / 2];
     mriq_args_t mriq_args[num_threads / 2];
 
-    for (int i = 0; i < num_threads / 2; ++i)
-    {
-        kernel_control_block_init(sgemm_args[i].kcb);
-        kernel_control_block_init(mriq_args[i].kcb);
-    }
-
     cudaEvent_t start_event, stop_event;
     checkCudaErrors(cudaEventCreate(&start_event));
     checkCudaErrors(cudaEventCreate(&stop_event));
 
     for (int i = 0; i < num_threads / 2; ++i)
     {
-        printf("hello sgemm!\n");
-        checkCudaErrors(cudaStreamCreate(sgemm_args[i].stream));
-        printf("bye sgemm!\n");
+        kernel_control_block_init(sgemm_args[i].kcb);
+        checkCudaErrors(cudaStreamCreate(&(sgemm_args[i].stream)));
         sgemm_args[i].A_sz = A_sz;
         sgemm_args[i].B_sz = B_sz;
         sgemm_args[i].C_sz = C_sz;
@@ -239,9 +232,8 @@ int main(int argc, char **argv)
         sgemm_args[i].matA = matA;
         sgemm_args[i].matBT = matBT;
 
-        printf("hello mri-q!\n");
-        checkCudaErrors(cudaStreamCreate(mriq_args[i].stream));
-        printf("bye mri-q!\n");
+        kernel_control_block_init(mriq_args[i].kcb);
+        checkCudaErrors(cudaStreamCreate(&(mriq_args[i].stream)));
         mriq_args[i].numX = numX;
         mriq_args[i].numK = numK;
         mriq_args[i].kx = kx;
@@ -306,26 +298,21 @@ int main(int argc, char **argv)
         }
     }
 
-    if (!(cudaSuccess == cudaEventRecord(stop_event, 0)))
-    {
-        CHECK_ERROR("cudaEventRecord");
-    }
-
-    cudaEventSynchronize(stop_event);
-    cudaEventElapsedTime(&elapsed_time, start_event, stop_event);
+    checkCudaErrors(cudaEventRecord(stop_event, 0));
+    checkCudaErrors(cudaEventSynchronize(stop_event));
+    checkCudaErrors(cudaEventElapsedTime(&elapsed_time, start_event, stop_event));
 
     for (int i = 0; i < num_threads / 2; ++i)
     {
         kernel_control_block_destroy(sgemm_args[i].kcb);
         kernel_control_block_destroy(mriq_args[i].kcb);
 
-        cudaStreamDestroy(*(sgemm_args[i].stream));
-        cudaStreamDestroy(*(mriq_args[i].stream));
+        cudaStreamDestroy(sgemm_args[i].stream);
+        cudaStreamDestroy(mriq_args[i].stream);
     }
 
-    cudaEventDestroy(start_event);
-    cudaEventDestroy(stop_event);
-    cudaDeviceReset();
+    checkCudaErrors(cudaEventDestroy(start_event));
+    checkCudaErrors(cudaEventDestroy(stop_event));
 
     printf("Measured time for sample = %.3fms\n", elapsed_time);
 
@@ -340,6 +327,7 @@ int main(int argc, char **argv)
     // free(phiI);
     // free(Qr);
     // free(Qi);
+    DEVICE_RESET
 
     return 0;
 }
