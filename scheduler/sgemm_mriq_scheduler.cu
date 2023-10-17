@@ -58,7 +58,7 @@ void *launch_kernel_sgemm(void *thread_args)
 
     // Use standard sgemm interface
     regtileSgemm('N', 'T', args->matArow, args->matBcol, args->matAcol, 1.0f,
-                 dA, args->matArow, dB, args->matBcol, 0.0f, dC, args->matArow, &(args->stream), args->kcb);
+                 dA, args->matArow, dB, args->matBcol, 0.0f, dC, args->matArow, &(args->stream), &(args->kcb));
 
     checkCudaErrors(cudaMemcpyAsync(&matC.front(), dC, args->C_sz, cudaMemcpyDeviceToHost, args->stream));
 
@@ -92,7 +92,7 @@ void *launch_kernel_mriq(void *thread_args)
 
         cudaDeviceSynchronize();
 
-        computePhiMag_GPU(args->numK, phiR_d, phiI_d, phiMag_d, &(args->stream), args->kcb);
+        computePhiMag_GPU(args->numK, phiR_d, phiI_d, phiMag_d, &(args->stream), &(args->kcb));
 
         cudaDeviceSynchronize();
 
@@ -220,7 +220,7 @@ int main(int argc, char **argv)
 
     for (int i = 0; i < num_threads / 2; ++i)
     {
-        kernel_control_block_init(sgemm_args[i].kcb);
+        kernel_control_block_init(&(sgemm_args[i].kcb));
         checkCudaErrors(cudaStreamCreate(&(sgemm_args[i].stream)));
         sgemm_args[i].A_sz = A_sz;
         sgemm_args[i].B_sz = B_sz;
@@ -232,7 +232,7 @@ int main(int argc, char **argv)
         sgemm_args[i].matA = matA;
         sgemm_args[i].matBT = matBT;
 
-        kernel_control_block_init(mriq_args[i].kcb);
+        kernel_control_block_init(&(mriq_args[i].kcb));
         checkCudaErrors(cudaStreamCreate(&(mriq_args[i].stream)));
         mriq_args[i].numX = numX;
         mriq_args[i].numK = numK;
@@ -268,24 +268,24 @@ int main(int argc, char **argv)
     int launch = 1;
     while (launch)
     {
-        if (launch % 3 == 0)
+        if (launch % 2 == 0)
         {
-            pthread_mutex_lock(&(sgemm_args[0].kcb->kernel_lock));
-            sgemm_args[0].kcb->state = RUNNING;
-            pthread_mutex_unlock(&(sgemm_args[0].kcb->kernel_lock));
-            pthread_cond_signal(&(sgemm_args[0].kcb->kernel_signal));
+            pthread_mutex_lock(&(sgemm_args[0].kcb.kernel_lock));
+            sgemm_args[0].kcb.state = RUNNING;
+            pthread_mutex_unlock(&(sgemm_args[0].kcb.kernel_lock));
+            pthread_cond_signal(&(sgemm_args[0].kcb.kernel_signal));
         }
         else
         {
-            pthread_mutex_lock(&(mriq_args[0].kcb->kernel_lock));
-            mriq_args[0].kcb->state = RUNNING;
-            pthread_mutex_unlock(&(mriq_args[0].kcb->kernel_lock));
-            pthread_cond_signal(&(mriq_args[0].kcb->kernel_signal));
+            pthread_mutex_lock(&(mriq_args[0].kcb.kernel_lock));
+            mriq_args[0].kcb.state = RUNNING;
+            pthread_mutex_unlock(&(mriq_args[0].kcb.kernel_lock));
+            pthread_cond_signal(&(mriq_args[0].kcb.kernel_signal));
         }
 
         launch++;
 
-        if (sgemm_args[0].kcb->slices == 0 && mriq_args[0].kcb->slices == 0)
+        if (sgemm_args[0].kcb.slices == 0 && mriq_args[0].kcb.slices == 0)
         {
             launch = 0;
         }
@@ -306,8 +306,8 @@ int main(int argc, char **argv)
 
     for (int i = 0; i < num_threads / 2; ++i)
     {
-        kernel_control_block_destroy(sgemm_args[i].kcb);
-        kernel_control_block_destroy(mriq_args[i].kcb);
+        kernel_control_block_destroy(&(sgemm_args[i].kcb));
+        kernel_control_block_destroy(&(mriq_args[i].kcb));
 
         cudaStreamDestroy(sgemm_args[i].stream);
         cudaStreamDestroy(mriq_args[i].stream);

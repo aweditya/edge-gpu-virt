@@ -16,7 +16,7 @@ typedef struct kernel_control_block
 
 typedef struct sgemm_args
 {
-    kernel_control_block_t *kcb;
+    kernel_control_block_t kcb;
 
     cudaStream_t stream;
     size_t A_sz, B_sz, C_sz;
@@ -28,7 +28,7 @@ typedef struct sgemm_args
 
 typedef struct mriq_args
 {
-    kernel_control_block_t *kcb;
+    kernel_control_block_t kcb;
 
     cudaStream_t stream;
     int numX, numK;      /* Number of X and K values */
