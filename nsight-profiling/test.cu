@@ -5,6 +5,7 @@
 #include <cuda_runtime.h>
 #include <sys/time.h>
 
+#include "kernel.h"
 #define DEVICE_RESET cudaDeviceReset();
 
 template <typename T>
@@ -25,13 +26,16 @@ void check(T result, char const *const func, const char *const file, int const l
 
 typedef struct
 {
+    kernel_control_block_t kcb;
+
     cudaStream_t stream;
     int offset;
+    int slicer;
 } targs_t;
 
-__global__ void test_kernel(int *a, int offset, int N)
+__global__ void test_kernel(int *a, int offset, int N, dim3 blockOffset)
 {
-    int tid = threadIdx.x + blockDim.x * blockIdx.x;
+    int tid = threadIdx.x + blockDim.x * (blockIdx.x + blockOffset.x);
     if (tid < N)
     {
         a[tid] += offset;
@@ -41,7 +45,6 @@ __global__ void test_kernel(int *a, int offset, int N)
 void *thread_func(void *thread_args)
 {
     struct timeval t0, t1, dt;
-    gettimeofday(&t0, NULL);
 
     targs_t *targs = (targs_t *)(thread_args);
     
@@ -50,7 +53,31 @@ void *thread_func(void *thread_args)
     int *d_a = 0;
     checkCudaErrors(cudaMalloc((void **)&d_a, N * sizeof(int)));
     checkCudaErrors(cudaMemset(d_a, 0, N * sizeof(int)));
-    test_kernel<<<4 * 1024, 1024, 0, targs->stream>>>(d_a, targs->offset, N);
+
+    dim3 gridConf(4 * 1024);
+    dim3 blockConf(1024);
+    dim3 sGridConf;
+    sGridConf.x = gridConf.x / targs->slicer;
+    targs->kcb.slices = targs->slicer;
+    printf("(thread %ld) slices: %d\n", (long)pthread_self(), targs->kcb.slices);
+
+    dim3 blockOffset(0);
+
+    gettimeofday(&t0, NULL);
+    while (blockOffset.x < gridConf.x)
+    {
+        pthread_mutex_lock(&(targs->kcb.kernel_lock));
+        while (targs->kcb.state != RUNNING)
+        {
+            pthread_cond_wait(&(targs->kcb.kernel_signal), &(targs->kcb.kernel_lock));
+        }
+        test_kernel<<<sGridConf, blockConf, 0, targs->stream>>>(d_a, targs->offset, N, blockOffset);
+        pthread_mutex_unlock(&(targs->kcb.kernel_lock));
+
+        targs->kcb.slices--;
+        targs->kcb.state = READY;
+        blockOffset.x += sGridConf.x;
+    }
 
     int *a = (int *)malloc(N * sizeof(int));
     checkCudaErrors(cudaMemcpyAsync(a, d_a, N * sizeof(int), cudaMemcpyDeviceToHost, targs->stream));
@@ -60,7 +87,7 @@ void *thread_func(void *thread_args)
 
     gettimeofday(&t1, NULL);
     timersub(&t1, &t0, &dt);
-    printf("thread_func (thread %ld) took %ld.%06ld sec\n", (long)pthread_self(), dt.tv_sec, dt.tv_usec);
+    printf("(thread %ld) thread_func took %ld.%06ld sec\n", (long)pthread_self(), dt.tv_sec, dt.tv_usec);
 
     return NULL;
 }
@@ -74,8 +101,11 @@ int main()
 
     for (int i = 0; i < 2; ++i)
     {
+        kernel_control_block_init(&(targs[i].kcb));
+
         cudaStreamCreate(&(targs[i].stream));
         targs[i].offset = i + 1;
+        targs[i].slicer = 4 * (i + 1);
     }
 
     cudaEvent_t start, stop;
@@ -89,6 +119,21 @@ int main()
         {
             fprintf(stderr, "Error creating threadn");
             return 1;
+        }
+    }
+
+    int launch = 1;
+    while (launch)
+    {
+        pthread_mutex_lock(&(targs[launch % 2].kcb.kernel_lock));
+        targs[launch % 2].kcb.state = RUNNING;
+        pthread_cond_signal(&(targs[launch % 2].kcb.kernel_signal));
+        pthread_mutex_unlock(&(targs[launch % 2].kcb.kernel_lock));
+
+        launch++;
+        if (targs[0].kcb.slices == 0 && targs[1].kcb.slices == 0)
+        {
+            launch = 0;
         }
     }
 
@@ -107,6 +152,7 @@ int main()
 
     for (int i = 0; i < 2; ++i)
     {
+        kernel_control_block_destroy(&(targs[i].kcb));
         cudaStreamDestroy(targs[i].stream);
     }
 
