@@ -106,12 +106,12 @@ void regtileSgemm(char transa, char transb, int m, int n, int k, float alpha, co
     dim3 blockConf(TILE_N, TILE_TB_HEIGHT);
     dim3 sGridConf(m / (TILE_M * m_slicer), n / (TILE_N * n_slicer));
 
-    kcb->slices = (gridConf.x * gridConf.y) / (sGridConf.x * sGridConf.y);
+    kcb->slicesLeft = (gridConf.x * gridConf.y) / (sGridConf.x * sGridConf.y);
 
     printf("gridConf: (%d, %d)\n", gridConf.x, gridConf.y);
     printf("blockConf: (%d, %d)\n", blockConf.x, blockConf.y);
     printf("sGridConf: (%d, %d)\n", sGridConf.x, sGridConf.y);
-    printf("number of slices: %d\n", kcb->slices);
+    printf("number of slices: %d\n", kcb->slicesLeft);
 
     dim3 blockOffset(0, 0);
     while (blockOffset.x < m / TILE_M && blockOffset.y < n / TILE_N)
@@ -122,27 +122,30 @@ void regtileSgemm(char transa, char transb, int m, int n, int k, float alpha, co
             pthread_cond_wait(&(kcb->kernel_signal), &(kcb->kernel_lock));
         }
 
-        if (stream == nullptr)
+        for (int i = 1; i <= min(kcb->slicesToLaunch, kcb->slicesLeft); ++i)
         {
+            if (stream == nullptr)
+            {
 
-            mysgemmNT<<<sGridConf, blockConf>>>(A, lda, B, ldb, C, ldc, k, alpha, beta, blockOffset);
+                mysgemmNT<<<sGridConf, blockConf>>>(A, lda, B, ldb, C, ldc, k, alpha, beta, blockOffset);
+            }
+            else
+            {
+
+                mysgemmNT<<<sGridConf, blockConf, 0, *stream>>>(A, lda, B, ldb, C, ldc, k, alpha, beta, blockOffset);
+            }
         }
-        else
-        {
-
-            mysgemmNT<<<sGridConf, blockConf, 0, *stream>>>(A, lda, B, ldb, C, ldc, k, alpha, beta, blockOffset);
-        }
-        pthread_mutex_unlock(&(kcb->kernel_lock));
-
         kcb->state = READY;
-        kcb->slices--;
+        blockOffset.x += sGridConf.x * min(kcb->slicesToLaunch, kcb->slicesLeft);
+        kcb->slicesLeft -= min(kcb->slicesToLaunch, kcb->slicesLeft);
 
-        blockOffset.x += sGridConf.x;
         while (blockOffset.x >= gridConf.x)
         {
             blockOffset.x -= gridConf.x;
             blockOffset.y += sGridConf.y;
         }
+
+        pthread_mutex_unlock(&(kcb->kernel_lock));
     }
 
     CHECK_ERROR("mySgemm");

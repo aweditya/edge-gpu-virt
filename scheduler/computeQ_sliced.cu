@@ -116,12 +116,12 @@ void computePhiMag_GPU(int numK, float *phiR_d, float *phiI_d, float *phiMag_d, 
     dim3 blockConf(KERNEL_PHI_MAG_THREADS_PER_BLOCK, 1);
     dim3 sGridConf(phiMagBlocks / slicer, 1);
 
-    kcb->slices = gridConf.x / sGridConf.x;
+    kcb->slicesLeft = gridConf.x / sGridConf.x;
 
     printf("gridConf: (%d, %d)\n", gridConf.x, gridConf.y);
     printf("blockConf: (%d, %d)\n", blockConf.x, blockConf.y);
     printf("sGridConf: (%d, %d)\n", sGridConf.x, sGridConf.y);
-    printf("number of slices: %d\n", kcb->slices);
+    printf("number of slices: %d\n", kcb->slicesLeft);
 
     dim3 blockOffset(0);
     while (blockOffset.x < gridConf.x)
@@ -132,19 +132,21 @@ void computePhiMag_GPU(int numK, float *phiR_d, float *phiI_d, float *phiMag_d, 
             pthread_cond_wait(&(kcb->kernel_signal), &(kcb->kernel_lock));
         }
 
-        if (stream == nullptr)
+        for (int i = 1; i < min(kcb->slicesToLaunch, kcb->slicesLeft); ++i)
         {
-            ComputePhiMag_GPU<<<sGridConf, blockConf>>>(phiR_d, phiI_d, phiMag_d, numK, blockOffset);
+            if (stream == nullptr)
+            {
+                ComputePhiMag_GPU<<<sGridConf, blockConf>>>(phiR_d, phiI_d, phiMag_d, numK, blockOffset);
+            }
+            else
+            {
+                ComputePhiMag_GPU<<<sGridConf, blockConf, 0, *stream>>>(phiR_d, phiI_d, phiMag_d, numK, blockOffset);
+            }
         }
-        else
-        {
-            ComputePhiMag_GPU<<<sGridConf, blockConf, 0, *stream>>>(phiR_d, phiI_d, phiMag_d, numK, blockOffset);
-        }
-        pthread_mutex_unlock(&(kcb->kernel_lock));
-
         kcb->state = READY;
-        kcb->slices--;
-        blockOffset.x += sGridConf.x;
+        blockOffset.x += sGridConf.x * min(kcb->slicesToLaunch, kcb->slicesLeft);
+        kcb->slicesLeft -= min(kcb->slicesToLaunch, kcb->slicesLeft);
+        pthread_mutex_unlock(&(kcb->kernel_lock));
     }
 }
 

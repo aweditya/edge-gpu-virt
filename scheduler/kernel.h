@@ -11,7 +11,8 @@ typedef struct kernel_control_block
     pthread_mutex_t kernel_lock;
     pthread_cond_t kernel_signal;
     KSTATE state;
-    int slices;
+    int slicesToLaunch;
+    int slicesLeft;
 } kernel_control_block_t;
 
 typedef struct sgemm_args
@@ -45,7 +46,8 @@ void kernel_control_block_init(kernel_control_block_t *kcb)
     pthread_mutex_init(&(kcb->kernel_lock), NULL);
     pthread_cond_init(&(kcb->kernel_signal), NULL);
     kcb->state = READY;
-    kcb->slices = -1;
+    kcb->slicesToLaunch = 1;
+    kcb->slicesLeft = -1;
 }
 
 void kernel_control_block_destroy(kernel_control_block_t *kcb)

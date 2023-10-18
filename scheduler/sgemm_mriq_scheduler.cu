@@ -271,6 +271,7 @@ int main(int argc, char **argv)
         if (launch % 2 == 0)
         {
             pthread_mutex_lock(&(sgemm_args[0].kcb.kernel_lock));
+            sgemm_args[0].kcb.slicesToLaunch = 4;
             sgemm_args[0].kcb.state = RUNNING;
             pthread_mutex_unlock(&(sgemm_args[0].kcb.kernel_lock));
             pthread_cond_signal(&(sgemm_args[0].kcb.kernel_signal));
@@ -279,13 +280,14 @@ int main(int argc, char **argv)
         {
             pthread_mutex_lock(&(mriq_args[0].kcb.kernel_lock));
             mriq_args[0].kcb.state = RUNNING;
+            mriq_args[0].kcb.slicesToLaunch = 1;
             pthread_mutex_unlock(&(mriq_args[0].kcb.kernel_lock));
             pthread_cond_signal(&(mriq_args[0].kcb.kernel_signal));
         }
 
         launch++;
 
-        if (sgemm_args[0].kcb.slices == 0 && mriq_args[0].kcb.slices == 0)
+        if (sgemm_args[0].kcb.slicesLeft == 0 && mriq_args[0].kcb.slicesLeft == 0)
         {
             launch = 0;
         }
