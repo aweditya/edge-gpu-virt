@@ -42,6 +42,9 @@ extern "C" void computeGold(float *, const float *, const float *, unsigned int,
 
 void *launch_kernel_sgemm(void *thread_args)
 {
+    struct timeval t0, t1, dt;
+    gettimeofday(&t0, NULL);
+
     float *dA, *dB, *dC;
     sgemm_args_t *args = (sgemm_args_t *)thread_args;
 
@@ -66,11 +69,18 @@ void *launch_kernel_sgemm(void *thread_args)
     checkCudaErrors(cudaFree(dB));
     checkCudaErrors(cudaFree(dC));
 
+    gettimeofday(&t1, NULL);
+    timersub(&t1, &t0, &dt);
+    printf("(SGEMM, thread %ld) took %ld.%06ld sec\n", (long)pthread_self(), dt.tv_sec, dt.tv_usec);
+
     return NULL;
 }
 
 void *launch_kernel_mriq(void *thread_args)
 {
+    struct timeval t0, t1, dt;
+    gettimeofday(&t0, NULL);
+
     mriq_args_t *args = (mriq_args_t *)thread_args;
 
     /* Create CPU data structures */
@@ -150,6 +160,11 @@ void *launch_kernel_mriq(void *thread_args)
     // }
 
     // free(kVals);
+
+    gettimeofday(&t1, NULL);
+    timersub(&t1, &t0, &dt);
+    printf("(MRI-Q, thread %ld) took %ld.%06ld sec\n", (long)pthread_self(), dt.tv_sec, dt.tv_usec);
+
     return NULL;
 }
 
@@ -268,7 +283,7 @@ int main(int argc, char **argv)
     int launch = 1;
     while (launch)
     {
-        if (launch % 2 == 0)
+        if (launch % 3 == 0)
         {
             pthread_mutex_lock(&(sgemm_args[0].kcb.kernel_lock));
             sgemm_args[0].kcb.slicesToLaunch = 4;
