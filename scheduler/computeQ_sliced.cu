@@ -168,10 +168,13 @@ void computeQ_GPU(int numK, int numX,
     dim3 gridConf(QBlocks, 1);
     dim3 blockConf(KERNEL_Q_THREADS_PER_BLOCK, 1);
     dim3 sGridConf(QBlocks / slicer, 1);
+    
+    kcb->slicesLeft = gridConf.x / sGridConf.x;
 
     printf("gridConf: (%d, %d)\n", gridConf.x, gridConf.y);
     printf("blockConf: (%d, %d)\n", blockConf.x, blockConf.y);
     printf("sGridConf: (%d, %d)\n", sGridConf.x, sGridConf.y);
+    printf("number of slices: %d\n", kcb->slicesLeft);
 
     for (int QGrid = 0; QGrid < QGrids; QGrid++)
     {
