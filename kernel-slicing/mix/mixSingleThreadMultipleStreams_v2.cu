@@ -54,125 +54,27 @@ typedef struct thread_args_mriq
 struct timeval t0, t1, t2;
 
 float *dA, *dB, *dC;
-void *launch_kernel_sgemm(void *thread_args)
-{
-    thread_args_sgemm_t *args = (thread_args_sgemm_t *)thread_args;
-
-    // CUDA memory allocation
-    std::vector<float> matC(args->matArow * args->matBcol);
-
-    // Copy A and B^T into device memory
-    if (!(cudaSuccess == cudaMemcpyAsync(dA, &(args->matA.front()), args->A_sz, cudaMemcpyHostToDevice, args->stream)))
-    {
-        CHECK_ERROR("cudaMemcpyAsync");
-    }
-
-    if (!(cudaSuccess == cudaMemcpyAsync(dB, &(args->matBT.front()), args->B_sz, cudaMemcpyHostToDevice, args->stream)))
-    {
-        CHECK_ERROR("cudaMemcpyAsync");
-    }
-
-    // Use standard sgemm interface
-    regtileSgemm('N', 'T', args->matArow, args->matBcol, args->matAcol, 1.0f,
-                 dA, args->matArow, dB, args->matBcol, 0.0f, dC, args->matArow, &args->stream);
-
-    if (!(cudaSuccess == cudaMemcpyAsync(&matC.front(), dC, args->C_sz, cudaMemcpyDeviceToHost, args->stream)))
-    {
-        CHECK_ERROR("cudaMemcpyAsync");
-    }
-    
-    gettimeofday(&t1, NULL);
-    return NULL;
-}
 
 float *phiR_d, *phiI_d;
 float *phiMag_d;
-
 float *x_d, *y_d, *z_d;
 float *Qr_d, *Qi_d;
 
-void *launch_kernel_mriq(void *thread_args)
-{
-    thread_args_mriq_t *args = (thread_args_mriq_t *)thread_args;
-
-    /* GPU section 1 (precompute PhiMag) */
-    {
-        /* Mirror several data structures on the device */
-        if (!(cudaSuccess == cudaMemcpyAsync(phiR_d, args->phiR, args->numK * sizeof(float), cudaMemcpyHostToDevice, args->stream)))
-        {
-            CHECK_ERROR("cudaMemcpyAsync");
-        }
-
-        if (!(cudaSuccess == cudaMemcpyAsync(phiI_d, args->phiI, args->numK * sizeof(float), cudaMemcpyHostToDevice, args->stream)))
-        {
-            CHECK_ERROR("cudaMemcpyAsync");
-        }
-
-        computePhiMag_GPU(args->numK, phiR_d, phiI_d, phiMag_d, &args->stream);
-
-        if (!(cudaSuccess == cudaMemcpyAsync(args->phiMag, phiMag_d, args->numK * sizeof(float), cudaMemcpyDeviceToHost, args->stream)))
-        {
-            CHECK_ERROR("cudaMemcpyAsync");
-        }
-    }
-
-    struct kValues *kVals;
-    kVals = (struct kValues *)calloc(args->numK, sizeof(struct kValues));
-    for (int k = 0; k < args->numK; k++)
-    {
-        kVals[k].Kx = args->kx[k];
-        kVals[k].Ky = args->ky[k];
-        kVals[k].Kz = args->kz[k];
-        kVals[k].PhiMag = args->phiMag[k];
-    }
-
-    /* GPU section 2 */
-    {
-        if (!(cudaSuccess == cudaMemcpyAsync(x_d, args->x, args->numX * sizeof(float), cudaMemcpyHostToDevice, args->stream)))
-        {
-            CHECK_ERROR("cudaMemcpyAsync");
-        }
-
-        if (!(cudaSuccess == cudaMemcpyAsync(y_d, args->y, args->numX * sizeof(float), cudaMemcpyHostToDevice, args->stream)))
-        {
-            CHECK_ERROR("cudaMemcpyAsync");
-        }
-
-        if (!(cudaSuccess == cudaMemcpyAsync(z_d, args->z, args->numX * sizeof(float), cudaMemcpyHostToDevice, args->stream)))
-        {
-            CHECK_ERROR("cudaMemcpyAsync");
-        }
-
-        if (!(cudaSuccess == cudaMemsetAsync((void *)Qr_d, 0, args->numX * sizeof(float), args->stream)))
-        {
-            CHECK_ERROR("cudaMemsetAsync");
-        }
-
-        if (!(cudaSuccess == cudaMemsetAsync((void *)Qi_d, 0, args->numX * sizeof(float), args->stream)))
-        {
-            CHECK_ERROR("cudaMemsetAsync");
-        }
-
-        computeQ_GPU(args->numK, args->numX, x_d, y_d, z_d, kVals, Qr_d, Qi_d, &args->stream);
-
-        if (!(cudaSuccess == cudaMemcpyAsync(args->Qr, Qr_d, args->numX * sizeof(float), cudaMemcpyDeviceToHost, args->stream)))
-        {
-            CHECK_ERROR("cudaMemcpyAsync");
-        }
-
-        if (!(cudaSuccess == cudaMemcpyAsync(args->Qi, Qi_d, args->numX * sizeof(float), cudaMemcpyDeviceToHost, args->stream)))
-        {
-            CHECK_ERROR("cudaMemcpyAsync");
-        }
-    }
-
-    free(kVals);
-    gettimeofday(&t2, NULL);
-    return NULL;
-}
-
 int main(int argc, char *argv[])
 {
+    float elapsed_time;
+
+    cudaEvent_t start_event, stop_event;
+    if (!(cudaSuccess == cudaEventCreate(&start_event)))
+    {
+        CHECK_ERROR("cudaEventCreate");
+    }
+
+    if (!(cudaSuccess == cudaEventCreate(&stop_event)))
+    {
+        CHECK_ERROR("cudaEventCreate");
+    }
+
     struct pb_Parameters *params;
 
     size_t A_sz, B_sz, C_sz;
@@ -287,21 +189,8 @@ int main(int argc, char *argv[])
     }
     /******************************/
 
-    float elapsed_time;
-
-    cudaEvent_t start_event, stop_event;
-    if (!(cudaSuccess == cudaEventCreate(&start_event)))
-    {
-        CHECK_ERROR("cudaEventCreate");
-    }
-
     thread_args_sgemm_t sgemm_args;
     thread_args_mriq_t mriq_args;
-    if (!(cudaSuccess == cudaEventCreate(&stop_event)))
-    {
-        CHECK_ERROR("cudaEventCreate");
-    }
-
     if (!(cudaSuccess == cudaStreamCreate(&sgemm_args.stream)))
     {
         CHECK_ERROR("cudaStreamCreate");
@@ -337,9 +226,166 @@ int main(int argc, char *argv[])
 
     cudaEventRecord(start_event, 0);
 
+    // CUDA memory allocation
+    std::vector<float> matC(matArow * matBcol);
+
+    /* SGEMM host to device memory copy */
+    // Copy A and B^T into device memory
+    if (!(cudaSuccess == cudaMemcpyAsync(dA, &(sgemm_args.matA.front()), sgemm_args.A_sz, cudaMemcpyHostToDevice, sgemm_args.stream)))
+    {
+        CHECK_ERROR("cudaMemcpyAsync");
+    }
+
+    if (!(cudaSuccess == cudaMemcpyAsync(dB, &(sgemm_args.matBT.front()), sgemm_args.B_sz, cudaMemcpyHostToDevice, sgemm_args.stream)))
+    {
+        CHECK_ERROR("cudaMemcpyAsync");
+    }
+
+    /* MRI-Q host to device memory copy */
+    /* Mirror several data structures on the device */
+    if (!(cudaSuccess == cudaMemcpyAsync(phiR_d, mriq_args.phiR, mriq_args.numK * sizeof(float), cudaMemcpyHostToDevice, mriq_args.stream)))
+    {
+        CHECK_ERROR("cudaMemcpyAsync");
+    }
+
+    if (!(cudaSuccess == cudaMemcpyAsync(phiI_d, mriq_args.phiI, mriq_args.numK * sizeof(float), cudaMemcpyHostToDevice, mriq_args.stream)))
+    {
+        CHECK_ERROR("cudaMemcpyAsync");
+    }
+
+    if (!(cudaSuccess == cudaMemcpyAsync(x_d, mriq_args.x, mriq_args.numX * sizeof(float), cudaMemcpyHostToDevice, mriq_args.stream)))
+    {
+        CHECK_ERROR("cudaMemcpyAsync");
+    }
+
+    if (!(cudaSuccess == cudaMemcpyAsync(y_d, mriq_args.y, mriq_args.numX * sizeof(float), cudaMemcpyHostToDevice, mriq_args.stream)))
+    {
+        CHECK_ERROR("cudaMemcpyAsync");
+    }
+
+    if (!(cudaSuccess == cudaMemcpyAsync(z_d, mriq_args.z, mriq_args.numX * sizeof(float), cudaMemcpyHostToDevice, mriq_args.stream)))
+    {
+        CHECK_ERROR("cudaMemcpyAsync");
+    }
+
+    if (!(cudaSuccess == cudaMemsetAsync((void *)Qr_d, 0, mriq_args.numX * sizeof(float), mriq_args.stream)))
+    {
+        CHECK_ERROR("cudaMemsetAsync");
+    }
+
+    if (!(cudaSuccess == cudaMemsetAsync((void *)Qi_d, 0, mriq_args.numX * sizeof(float), mriq_args.stream)))
+    {
+        CHECK_ERROR("cudaMemsetAsync");
+    }
+
     gettimeofday(&t0, NULL);
-    launch_kernel_sgemm(&sgemm_args);
-    launch_kernel_mriq(&mriq_args);
+
+    /* MRI-Q PhiMag computation */
+    int phiMagBlocks = mriq_args.numK / KERNEL_PHI_MAG_THREADS_PER_BLOCK;
+    if (mriq_args.numK % KERNEL_PHI_MAG_THREADS_PER_BLOCK)
+        phiMagBlocks++;
+
+    dim3 gridConf(phiMagBlocks, 1);
+    dim3 blockConf(KERNEL_PHI_MAG_THREADS_PER_BLOCK, 1);
+    dim3 blockOffset(0);
+    ComputePhiMag_GPU<<<gridConf, blockConf, 0, mriq_args.stream>>>(phiR_d, phiI_d, phiMag_d, mriq_args.numK, blockOffset);
+    /* MRI-Q PhiMag computation */
+
+    struct kValues *kVals;
+    kVals = (struct kValues *)calloc(mriq_args.numK, sizeof(struct kValues));
+    for (int k = 0; k < mriq_args.numK; k++)
+    {
+        kVals[k].Kx = mriq_args.kx[k];
+        kVals[k].Ky = mriq_args.ky[k];
+        kVals[k].Kz = mriq_args.kz[k];
+        kVals[k].PhiMag = mriq_args.phiMag[k];
+    }
+
+    // Use standard sgemm interface
+    int m = matArow;
+    int n = matBcol;
+    int k = matAcol;
+    float alpha = 1.0f, beta = 0.0f;
+    int lda = matArow;
+    int ldb = matBcol;
+    int ldc = matArow;
+
+    int m_slicer = 2, n_slicer = 6;
+    dim3 sgemmGridConf(m / TILE_M, n / TILE_N);
+    dim3 sgemmBlockConf(TILE_N, TILE_TB_HEIGHT);
+    dim3 sgemmSGridConf(m / (TILE_M * m_slicer), n / (TILE_N * n_slicer));
+
+    int QGrids = mriq_args.numK / KERNEL_Q_K_ELEMS_PER_GRID;
+    if (mriq_args.numK % KERNEL_Q_K_ELEMS_PER_GRID)
+        QGrids++;
+    int QBlocks = mriq_args.numX / KERNEL_Q_THREADS_PER_BLOCK;
+    if (mriq_args.numX % KERNEL_Q_THREADS_PER_BLOCK)
+        QBlocks++;
+
+    int slicer = 4;
+    dim3 mriqGridConf(QBlocks, 1);
+    dim3 mriqBlockConf(KERNEL_Q_THREADS_PER_BLOCK, 1);
+    dim3 mriqSGridConf(QBlocks / slicer, 1);
+
+    printf("(SGEMM) gridConf: (%d, %d)\n", sgemmGridConf.x, sgemmGridConf.y);
+    printf("(SGEMM) blockConf: (%d, %d)\n", sgemmBlockConf.x, sgemmBlockConf.y);
+    printf("(SGEMM) sGridConf: (%d, %d)\n", sgemmSGridConf.x, sgemmSGridConf.y);
+    printf("(SGEMM) number of slices: %d\n", m_slicer * n_slicer);
+
+    printf("(MRI-Q) gridConf: (%d, %d)\n", mriqGridConf.x, mriqGridConf.y);
+    printf("(MRI-Q) blockConf: (%d, %d)\n", mriqBlockConf.x, mriqBlockConf.y);
+    printf("(MRI-Q) sGridConf: (%d, %d)\n", mriqSGridConf.x, mriqSGridConf.y);
+    printf("(MRI-Q) number of slices: %d\n", slicer);
+
+    dim3 sgemmBlockOffset(0, 0);
+    while (sgemmBlockOffset.x < m / TILE_M && sgemmBlockOffset.y < n / TILE_N)
+    {
+        mysgemmNT<<<sgemmSGridConf, sgemmBlockConf, 0, sgemm_args.stream>>>(dA, lda, dB, ldb, dC, ldc, k, alpha, beta, sgemmBlockOffset);
+
+        sgemmBlockOffset.x += sgemmSGridConf.x;
+        while (sgemmBlockOffset.x >= sgemmGridConf.x)
+        {
+            sgemmBlockOffset.x -= sgemmGridConf.x;
+            sgemmBlockOffset.y += sgemmSGridConf.y;
+        }
+    }
+
+    for (int QGrid = 0; QGrid < QGrids; QGrid++)
+    {
+        // Put the tile of K values into constant mem
+        int QGridBase = QGrid * KERNEL_Q_K_ELEMS_PER_GRID;
+        kValues *kValsTile = kVals + QGridBase;
+        int numElems = MIN(KERNEL_Q_K_ELEMS_PER_GRID, numK - QGridBase);
+
+        cudaMemcpyToSymbolAsync(ck, kValsTile, numElems * sizeof(kValues), 0, cudaMemcpyHostToDevice, mriq_args.stream);
+
+        dim3 mriqBlockOffset(0);
+        while (mriqBlockOffset.x < mriqGridConf.x)
+        {
+            ComputeQ_GPU<<<mriqSGridConf, mriqBlockConf, 0, mriq_args.stream>>>(mriq_args.numK, QGridBase, x_d, y_d, z_d, Qr_d, Qi_d, mriqBlockOffset);
+            mriqBlockOffset.x += mriqSGridConf.x;
+        }
+    }
+
+    if (!(cudaSuccess == cudaMemcpyAsync(&matC.front(), dC, sgemm_args.C_sz, cudaMemcpyDeviceToHost, sgemm_args.stream)))
+    {
+        CHECK_ERROR("cudaMemcpyAsync");
+    }
+
+    if (!(cudaSuccess == cudaMemcpyAsync(mriq_args.phiMag, phiMag_d, mriq_args.numK * sizeof(float), cudaMemcpyDeviceToHost, mriq_args.stream)))
+    {
+        CHECK_ERROR("cudaMemcpyAsync");
+    }
+
+    if (!(cudaSuccess == cudaMemcpyAsync(mriq_args.Qr, Qr_d, mriq_args.numX * sizeof(float), cudaMemcpyDeviceToHost, mriq_args.stream)))
+    {
+        CHECK_ERROR("cudaMemcpyAsync");
+    }
+
+    if (!(cudaSuccess == cudaMemcpyAsync(mriq_args.Qi, Qi_d, mriq_args.numX * sizeof(float), cudaMemcpyDeviceToHost, mriq_args.stream)))
+    {
+        CHECK_ERROR("cudaMemcpyAsync");
+    }
 
     if (!(cudaSuccess == cudaEventRecord(stop_event, 0)))
     {
@@ -376,13 +422,14 @@ int main(int argc, char *argv[])
     cudaDeviceReset();
 
     printf("Measured time for sample = %.3fms\n", elapsed_time);
-    
-    struct timeval dt01, dt02;
-    timersub(&t1, &t0, &dt01);
-    timersub(&t2, &t0, &dt02);
-    printf("Time taken for completion of SGEMM: %ld.%06ld\n", dt01.tv_sec, dt01.tv_usec);
-    printf("Time taken for completion of MRI-Q: %ld.%06ld\n", dt02.tv_sec, dt02.tv_usec);
 
+    // struct timeval dt01, dt02;
+    // timersub(&t1, &t0, &dt01);
+    // timersub(&t2, &t0, &dt02);
+    // printf("Time taken for completion of SGEMM: %ld.%06ld\n", dt01.tv_sec, dt01.tv_usec);
+    // printf("Time taken for completion of MRI-Q: %ld.%06ld\n", dt02.tv_sec, dt02.tv_usec);
+
+    free(kVals);
     free(phiMag);
     free(kx);
     free(ky);
