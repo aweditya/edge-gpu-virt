@@ -291,6 +291,7 @@ int main(int argc, char *argv[])
     ComputePhiMag_GPU<<<gridConf, blockConf, 0, mriq_args.stream>>>(phiR_d, phiI_d, phiMag_d, mriq_args.numK, blockOffset);
     /* MRI-Q PhiMag computation */
 
+    /* Some additional setup for MRI-Q */
     struct kValues *kVals;
     kVals = (struct kValues *)calloc(mriq_args.numK, sizeof(struct kValues));
     for (int k = 0; k < mriq_args.numK; k++)
@@ -301,6 +302,21 @@ int main(int argc, char *argv[])
         kVals[k].PhiMag = mriq_args.phiMag[k];
     }
 
+    int QGridBase1 = 0, QGridBase2 = KERNEL_Q_K_ELEMS_PER_GRID;
+    kValues *kValsTile1 = kVals + QGridBase1, *kValsTile2 = kVals + QGridBase2;
+    int numElems1 = MIN(KERNEL_Q_K_ELEMS_PER_GRID, numK - QGridBase1), numElems2 = MIN(KERNEL_Q_K_ELEMS_PER_GRID, numK - QGridBase2);
+
+    if (!(cudaSuccess == cudaMemcpyToSymbolAsync(ck, kValsTile1, numElems1 * sizeof(kValues), 0, cudaMemcpyHostToDevice, mriq_args.stream)))
+    {
+        CHECK_ERROR("cudaMemcpyToSymbolAsync");
+    }
+
+    if (!(cudaSuccess == cudaMemcpyToSymbolAsync(ck, kValsTile2, numElems2 * sizeof(kValues), 0, cudaMemcpyHostToDevice, mriq_args.stream)))
+    {
+        CHECK_ERROR("cudaMemcpyToSymbolAsync");
+    }
+    /***********************************/
+
     // Use standard sgemm interface
     int m = matArow;
     int n = matBcol;
@@ -310,10 +326,11 @@ int main(int argc, char *argv[])
     int ldb = matBcol;
     int ldc = matArow;
 
-    int m_slicer = 2, n_slicer = 6;
+    int m_slicer = 1, n_slicer = 2;
     dim3 sgemmGridConf(m / TILE_M, n / TILE_N);
     dim3 sgemmBlockConf(TILE_N, TILE_TB_HEIGHT);
     dim3 sgemmSGridConf(m / (TILE_M * m_slicer), n / (TILE_N * n_slicer));
+    int sgemmTotalSlices = m_slicer * n_slicer;
 
     int QGrids = mriq_args.numK / KERNEL_Q_K_ELEMS_PER_GRID;
     if (mriq_args.numK % KERNEL_Q_K_ELEMS_PER_GRID)
@@ -326,44 +343,62 @@ int main(int argc, char *argv[])
     dim3 mriqGridConf(QBlocks, 1);
     dim3 mriqBlockConf(KERNEL_Q_THREADS_PER_BLOCK, 1);
     dim3 mriqSGridConf(QBlocks / slicer, 1);
+    int mriq1TotalSlices = slicer, mriq2TotalSlices = slicer;
 
+    /* Printing kernel information */
     printf("(SGEMM) gridConf: (%d, %d)\n", sgemmGridConf.x, sgemmGridConf.y);
     printf("(SGEMM) blockConf: (%d, %d)\n", sgemmBlockConf.x, sgemmBlockConf.y);
     printf("(SGEMM) sGridConf: (%d, %d)\n", sgemmSGridConf.x, sgemmSGridConf.y);
     printf("(SGEMM) number of slices: %d\n", m_slicer * n_slicer);
 
-    printf("(MRI-Q) gridConf: (%d, %d)\n", mriqGridConf.x, mriqGridConf.y);
-    printf("(MRI-Q) blockConf: (%d, %d)\n", mriqBlockConf.x, mriqBlockConf.y);
-    printf("(MRI-Q) sGridConf: (%d, %d)\n", mriqSGridConf.x, mriqSGridConf.y);
-    printf("(MRI-Q) number of slices: %d\n", slicer);
+    printf("(MRI-Q x2) gridConf: (%d, %d)\n", mriqGridConf.x, mriqGridConf.y);
+    printf("(MRI-Q x2) blockConf: (%d, %d)\n", mriqBlockConf.x, mriqBlockConf.y);
+    printf("(MRI-Q x2) sGridConf: (%d, %d)\n", mriqSGridConf.x, mriqSGridConf.y);
+    printf("(MRI-Q x2) number of slices: %d\n", slicer);
+    /*******************************/
 
     dim3 sgemmBlockOffset(0, 0);
-    while (sgemmBlockOffset.x < m / TILE_M && sgemmBlockOffset.y < n / TILE_N)
-    {
-        mysgemmNT<<<sgemmSGridConf, sgemmBlockConf, 0, sgemm_args.stream>>>(dA, lda, dB, ldb, dC, ldc, k, alpha, beta, sgemmBlockOffset);
+    dim3 mriq1BlockOffset(0), mriq2BlockOffset(0);
 
-        sgemmBlockOffset.x += sgemmSGridConf.x;
-        while (sgemmBlockOffset.x >= sgemmGridConf.x)
+    int launch = 1;
+    while (launch)
+    {
+        printf("%d %d %d\n", sgemmTotalSlices, mriq1TotalSlices, mriq2TotalSlices);
+        if (launch % 3 == 1)
         {
-            sgemmBlockOffset.x -= sgemmGridConf.x;
-            sgemmBlockOffset.y += sgemmSGridConf.y;
+            for (int i = 0; i < 1; ++i)
+            {
+                mysgemmNT<<<sgemmSGridConf, sgemmBlockConf, 0, sgemm_args.stream>>>(dA, lda, dB, ldb, dC, ldc, k, alpha, beta, sgemmBlockOffset);
+
+                sgemmBlockOffset.x += sgemmSGridConf.x;
+                while (sgemmBlockOffset.x >= sgemmGridConf.x)
+                {
+                    sgemmBlockOffset.x -= sgemmGridConf.x;
+                    sgemmBlockOffset.y += sgemmSGridConf.y;
+                }
+
+                sgemmTotalSlices = max(sgemmTotalSlices - 1, 0);
+            }
         }
-    }
-
-    for (int QGrid = 0; QGrid < QGrids; QGrid++)
-    {
-        // Put the tile of K values into constant mem
-        int QGridBase = QGrid * KERNEL_Q_K_ELEMS_PER_GRID;
-        kValues *kValsTile = kVals + QGridBase;
-        int numElems = MIN(KERNEL_Q_K_ELEMS_PER_GRID, numK - QGridBase);
-
-        cudaMemcpyToSymbolAsync(ck, kValsTile, numElems * sizeof(kValues), 0, cudaMemcpyHostToDevice, mriq_args.stream);
-
-        dim3 mriqBlockOffset(0);
-        while (mriqBlockOffset.x < mriqGridConf.x)
+        else if (launch % 3 == 2)
         {
-            ComputeQ_GPU<<<mriqSGridConf, mriqBlockConf, 0, mriq_args.stream>>>(mriq_args.numK, QGridBase, x_d, y_d, z_d, Qr_d, Qi_d, mriqBlockOffset);
-            mriqBlockOffset.x += mriqSGridConf.x;
+            ComputeQ_GPU<<<mriqSGridConf, mriqBlockConf, 0, mriq_args.stream>>>(mriq_args.numK, QGridBase1, x_d, y_d, z_d, Qr_d, Qi_d, mriq1BlockOffset);
+            mriq1BlockOffset.x += mriqSGridConf.x;
+
+            mriq1TotalSlices = max(mriq1TotalSlices - 1, 0);
+        }
+        else
+        {
+            ComputeQ_GPU<<<mriqSGridConf, mriqBlockConf, 0, mriq_args.stream>>>(mriq_args.numK, QGridBase2, x_d, y_d, z_d, Qr_d, Qi_d, mriq2BlockOffset);
+            mriq2BlockOffset.x += mriqSGridConf.x;
+
+            mriq2TotalSlices = max(mriq2TotalSlices - 1, 0);
+        }
+
+        launch++;
+        if (sgemmTotalSlices == 0 && mriq1TotalSlices == 0 && mriq2TotalSlices == 0)
+        {
+            launch = 0;
         }
     }
 
