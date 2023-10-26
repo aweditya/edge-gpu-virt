@@ -326,7 +326,7 @@ int main(int argc, char *argv[])
     int ldb = matBcol;
     int ldc = matArow;
 
-    int m_slicer = 1, n_slicer = 2;
+    int m_slicer = 2, n_slicer = 6;
     dim3 sgemmGridConf(m / TILE_M, n / TILE_N);
     dim3 sgemmBlockConf(TILE_N, TILE_TB_HEIGHT);
     dim3 sgemmSGridConf(m / (TILE_M * m_slicer), n / (TILE_N * n_slicer));
@@ -366,33 +366,42 @@ int main(int argc, char *argv[])
         printf("%d %d %d\n", sgemmTotalSlices, mriq1TotalSlices, mriq2TotalSlices);
         if (launch % 3 == 1)
         {
-            for (int i = 0; i < 1; ++i)
+            if (sgemmTotalSlices)
             {
-                mysgemmNT<<<sgemmSGridConf, sgemmBlockConf, 0, sgemm_args.stream>>>(dA, lda, dB, ldb, dC, ldc, k, alpha, beta, sgemmBlockOffset);
-
-                sgemmBlockOffset.x += sgemmSGridConf.x;
-                while (sgemmBlockOffset.x >= sgemmGridConf.x)
+                for (int i = 0; i < 3; ++i)
                 {
-                    sgemmBlockOffset.x -= sgemmGridConf.x;
-                    sgemmBlockOffset.y += sgemmSGridConf.y;
-                }
+                    mysgemmNT<<<sgemmSGridConf, sgemmBlockConf, 0, sgemm_args.stream>>>(dA, lda, dB, ldb, dC, ldc, k, alpha, beta, sgemmBlockOffset);
 
-                sgemmTotalSlices = max(sgemmTotalSlices - 1, 0);
+                    sgemmBlockOffset.x += sgemmSGridConf.x;
+                    while (sgemmBlockOffset.x >= sgemmGridConf.x)
+                    {
+                        sgemmBlockOffset.x -= sgemmGridConf.x;
+                        sgemmBlockOffset.y += sgemmSGridConf.y;
+                    }
+
+                    sgemmTotalSlices--;
+                }
             }
         }
         else if (launch % 3 == 2)
         {
-            ComputeQ_GPU<<<mriqSGridConf, mriqBlockConf, 0, mriq_args.stream>>>(mriq_args.numK, QGridBase1, x_d, y_d, z_d, Qr_d, Qi_d, mriq1BlockOffset);
-            mriq1BlockOffset.x += mriqSGridConf.x;
+            if (mriq1TotalSlices)
+            {
+                ComputeQ_GPU<<<mriqSGridConf, mriqBlockConf, 0, mriq_args.stream>>>(mriq_args.numK, QGridBase1, x_d, y_d, z_d, Qr_d, Qi_d, mriq1BlockOffset);
+                mriq1BlockOffset.x += mriqSGridConf.x;
 
-            mriq1TotalSlices = max(mriq1TotalSlices - 1, 0);
+                mriq1TotalSlices--;
+            }
         }
         else
         {
-            ComputeQ_GPU<<<mriqSGridConf, mriqBlockConf, 0, mriq_args.stream>>>(mriq_args.numK, QGridBase2, x_d, y_d, z_d, Qr_d, Qi_d, mriq2BlockOffset);
-            mriq2BlockOffset.x += mriqSGridConf.x;
+            if (mriq2TotalSlices)
+            {
+                ComputeQ_GPU<<<mriqSGridConf, mriqBlockConf, 0, mriq_args.stream>>>(mriq_args.numK, QGridBase2, x_d, y_d, z_d, Qr_d, Qi_d, mriq2BlockOffset);
+                mriq2BlockOffset.x += mriqSGridConf.x;
 
-            mriq2TotalSlices = max(mriq2TotalSlices - 1, 0);
+                mriq2TotalSlices--;
+            }
         }
 
         launch++;
