@@ -146,6 +146,7 @@ void computeQ_GPU(int numK, int numX,
     printf("gridConf: (%d, %d)\n", gridConf.x, gridConf.y);
     printf("blockConf: (%d, %d)\n", blockConf.x, blockConf.y);
     printf("sGridConf: (%d, %d)\n", sGridConf.x, sGridConf.y);
+    printf("number of slices: %d\n", slicer);
 
     for (int QGrid = 0; QGrid < QGrids; QGrid++)
     {
@@ -154,7 +155,7 @@ void computeQ_GPU(int numK, int numX,
         kValues *kValsTile = kVals + QGridBase;
         int numElems = MIN(KERNEL_Q_K_ELEMS_PER_GRID, numK - QGridBase);
 
-        cudaMemcpyToSymbol(ck, kValsTile, numElems * sizeof(kValues), 0);
+        cudaMemcpyToSymbolAsync(ck, kValsTile, numElems * sizeof(kValues), 0, cudaMemcpyHostToDevice, *stream);
 
         dim3 blockOffset(0);
         while (blockOffset.x < gridConf.x)

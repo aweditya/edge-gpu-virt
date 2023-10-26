@@ -139,11 +139,7 @@ void *launch_kernel_mriq(void *thread_args)
             CHECK_ERROR("cudaMalloc");
         }
 
-        cudaDeviceSynchronize();
-
         computePhiMag_GPU(args->numK, phiR_d, phiI_d, phiMag_d, args->stream);
-
-        cudaDeviceSynchronize();
 
         if (!(cudaSuccess == cudaMemcpyAsync(args->phiMag, phiMag_d, args->numK * sizeof(float), cudaMemcpyDeviceToHost, *(args->stream))))
         {
@@ -220,11 +216,7 @@ void *launch_kernel_mriq(void *thread_args)
             CHECK_ERROR("cudaMemsetAsync");
         }
 
-        cudaDeviceSynchronize();
-
         computeQ_GPU(args->numK, args->numX, x_d, y_d, z_d, kVals, Qr_d, Qi_d, args->stream);
-
-        cudaDeviceSynchronize();
 
         if (!(cudaSuccess == cudaMemcpyAsync(args->Qr, Qr_d, args->numX * sizeof(float), cudaMemcpyDeviceToHost, *(args->stream))))
         {
@@ -303,7 +295,7 @@ int main(int argc, char *argv[])
 
     float elapsed_time;
 
-    const int num_threads = 4;
+    const int num_threads = 2;
     thread_args_sgemm_t sgemm_args[num_threads / 2];
     thread_args_mriq_t mriq_args[num_threads / 2];
 

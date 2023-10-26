@@ -107,6 +107,7 @@ void regtileSgemm(char transa, char transb, int m, int n, int k, float alpha, co
     printf("gridConf: (%d, %d)\n", gridConf.x, gridConf.y);
     printf("blockConf: (%d, %d)\n", blockConf.x, blockConf.y);
     printf("sGridConf: (%d, %d)\n", sGridConf.x, sGridConf.y);
+    printf("number of slices: %d\n", m_slicer * n_slicer);
 
     dim3 blockOffset(0, 0);
     while (blockOffset.x < m / TILE_M && blockOffset.y < n / TILE_N)
