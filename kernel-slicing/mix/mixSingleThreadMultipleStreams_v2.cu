@@ -51,7 +51,7 @@ typedef struct thread_args_mriq
         }                                                                       \
     }
 
-struct timeval t0, t1, t2;
+struct timeval t0, t1, dt;
 
 float *dA, *dB, *dC;
 
@@ -224,8 +224,6 @@ int main(int argc, char *argv[])
     mriq_args.Qr = Qr;
     mriq_args.Qi = Qi;
 
-    cudaEventRecord(start_event, 0);
-
     // CUDA memory allocation
     std::vector<float> matC(matArow * matBcol);
 
@@ -278,8 +276,6 @@ int main(int argc, char *argv[])
         CHECK_ERROR("cudaMemsetAsync");
     }
 
-    gettimeofday(&t0, NULL);
-
     /* MRI-Q PhiMag computation */
     int phiMagBlocks = mriq_args.numK / KERNEL_PHI_MAG_THREADS_PER_BLOCK;
     if (mriq_args.numK % KERNEL_PHI_MAG_THREADS_PER_BLOCK)
@@ -326,7 +322,7 @@ int main(int argc, char *argv[])
     int ldb = matBcol;
     int ldc = matArow;
 
-    int m_slicer = 2, n_slicer = 6;
+    int m_slicer = 2, n_slicer = 3;
     dim3 sgemmGridConf(m / TILE_M, n / TILE_N);
     dim3 sgemmBlockConf(TILE_N, TILE_TB_HEIGHT);
     dim3 sgemmSGridConf(m / (TILE_M * m_slicer), n / (TILE_N * n_slicer));
@@ -360,6 +356,7 @@ int main(int argc, char *argv[])
     dim3 sgemmBlockOffset(0, 0);
     dim3 mriq1BlockOffset(0), mriq2BlockOffset(0);
 
+    cudaEventRecord(start_event, 0);
     int launch = 1;
     while (launch)
     {
@@ -368,7 +365,7 @@ int main(int argc, char *argv[])
         {
             if (sgemmTotalSlices)
             {
-                for (int i = 0; i < 3; ++i)
+                for (int i = 0; i < 1; ++i)
                 {
                     mysgemmNT<<<sgemmSGridConf, sgemmBlockConf, 0, sgemm_args.stream>>>(dA, lda, dB, ldb, dC, ldc, k, alpha, beta, sgemmBlockOffset);
 
@@ -411,6 +408,14 @@ int main(int argc, char *argv[])
         }
     }
 
+    if (!(cudaSuccess == cudaEventRecord(stop_event, 0)))
+    {
+        CHECK_ERROR("cudaEventRecord");
+    }
+
+    cudaEventSynchronize(stop_event);
+    cudaEventElapsedTime(&elapsed_time, start_event, stop_event);
+
     if (!(cudaSuccess == cudaMemcpyAsync(&matC.front(), dC, sgemm_args.C_sz, cudaMemcpyDeviceToHost, sgemm_args.stream)))
     {
         CHECK_ERROR("cudaMemcpyAsync");
@@ -426,18 +431,14 @@ int main(int argc, char *argv[])
         CHECK_ERROR("cudaMemcpyAsync");
     }
 
+    gettimeofday(&t0, NULL);
     if (!(cudaSuccess == cudaMemcpyAsync(mriq_args.Qi, Qi_d, mriq_args.numX * sizeof(float), cudaMemcpyDeviceToHost, mriq_args.stream)))
     {
         CHECK_ERROR("cudaMemcpyAsync");
     }
 
-    if (!(cudaSuccess == cudaEventRecord(stop_event, 0)))
-    {
-        CHECK_ERROR("cudaEventRecord");
-    }
-
-    cudaEventSynchronize(stop_event);
-    cudaEventElapsedTime(&elapsed_time, start_event, stop_event);
+    gettimeofday(&t1, NULL);
+    timersub(&t1, &t0, &dt);
 
     cudaStreamDestroy(sgemm_args.stream);
     cudaStreamDestroy(mriq_args.stream);
@@ -466,12 +467,7 @@ int main(int argc, char *argv[])
     cudaDeviceReset();
 
     printf("Measured time for sample = %.3fms\n", elapsed_time);
-
-    // struct timeval dt01, dt02;
-    // timersub(&t1, &t0, &dt01);
-    // timersub(&t2, &t0, &dt02);
-    // printf("Time taken for completion of SGEMM: %ld.%06ld\n", dt01.tv_sec, dt01.tv_usec);
-    // printf("Time taken for completion of MRI-Q: %ld.%06ld\n", dt02.tv_sec, dt02.tv_usec);
+    printf("Measured time for sample = %ld.%06lds\n", dt.tv_sec, dt.tv_usec);
 
     free(kVals);
     free(phiMag);
