@@ -322,7 +322,7 @@ int main(int argc, char *argv[])
     int ldb = matBcol;
     int ldc = matArow;
 
-    int m_slicer = 2, n_slicer = 3;
+    int m_slicer = 1, n_slicer = 1;
     dim3 sgemmGridConf(m / TILE_M, n / TILE_N);
     dim3 sgemmBlockConf(TILE_N, TILE_TB_HEIGHT);
     dim3 sgemmSGridConf(m / (TILE_M * m_slicer), n / (TILE_N * n_slicer));
@@ -335,7 +335,7 @@ int main(int argc, char *argv[])
     if (mriq_args.numX % KERNEL_Q_THREADS_PER_BLOCK)
         QBlocks++;
 
-    int slicer = 4;
+    int slicer = 1;
     dim3 mriqGridConf(QBlocks, 1);
     dim3 mriqBlockConf(KERNEL_Q_THREADS_PER_BLOCK, 1);
     dim3 mriqSGridConf(QBlocks / slicer, 1);
@@ -360,7 +360,6 @@ int main(int argc, char *argv[])
     int launch = 1;
     while (launch)
     {
-        printf("%d %d %d\n", sgemmTotalSlices, mriq1TotalSlices, mriq2TotalSlices);
         if (launch % 3 == 1)
         {
             if (sgemmTotalSlices)
@@ -431,14 +430,10 @@ int main(int argc, char *argv[])
         CHECK_ERROR("cudaMemcpyAsync");
     }
 
-    gettimeofday(&t0, NULL);
     if (!(cudaSuccess == cudaMemcpyAsync(mriq_args.Qi, Qi_d, mriq_args.numX * sizeof(float), cudaMemcpyDeviceToHost, mriq_args.stream)))
     {
         CHECK_ERROR("cudaMemcpyAsync");
     }
-
-    gettimeofday(&t1, NULL);
-    timersub(&t1, &t0, &dt);
 
     cudaStreamDestroy(sgemm_args.stream);
     cudaStreamDestroy(mriq_args.stream);
