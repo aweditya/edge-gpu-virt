@@ -39,6 +39,11 @@ typedef struct thread_args
 
 void *launch_kernel(void *thread_args)
 {
+    struct timeval t0, t1, dt;
+
+    cudaStream_t stream;
+    cudaStreamCreate(&stream);
+
     float *dA, *dB, *dC;
     thread_args_t *args = (thread_args_t *)thread_args;
 
@@ -61,21 +66,24 @@ void *launch_kernel(void *thread_args)
     }
 
     // Copy A and B^T into device memory
-    if (!(cudaSuccess == cudaMemcpy(dA, &(args->matA.front()), args->A_sz, cudaMemcpyHostToDevice)))
+    if (!(cudaSuccess == cudaMemcpyAsync(dA, &(args->matA.front()), args->A_sz, cudaMemcpyHostToDevice, stream)))
     {
         CHECK_ERROR("cudaMemcpy");
     }
 
-    if (!(cudaSuccess == cudaMemcpy(dB, &(args->matBT.front()), args->B_sz, cudaMemcpyHostToDevice)))
+    if (!(cudaSuccess == cudaMemcpyAsync(dB, &(args->matBT.front()), args->B_sz, cudaMemcpyHostToDevice, stream)))
     {
         CHECK_ERROR("cudaMemcpy");
     }
 
     // Use standard sgemm interface
+    gettimeofday(&t0, NULL);
     regtileSgemm('N', 'T', args->matArow, args->matBcol, args->matAcol, 1.0f,
-                 dA, args->matArow, dB, args->matBcol, 0.0f, dC, args->matArow, nullptr);
+                 dA, args->matArow, dB, args->matBcol, 0.0f, dC, args->matArow, &stream);
 
-    if (!(cudaSuccess == cudaMemcpy(&matC.front(), dC, args->C_sz, cudaMemcpyDeviceToHost)))
+    gettimeofday(&t1, NULL);
+
+    if (!(cudaSuccess == cudaMemcpyAsync(&matC.front(), dC, args->C_sz, cudaMemcpyDeviceToHost, stream)))
     {
         CHECK_ERROR("cudaMemcpy");
     }
@@ -83,6 +91,11 @@ void *launch_kernel(void *thread_args)
     cudaFree(dA);
     cudaFree(dB);
     cudaFree(dC);
+
+    cudaStreamDestroy(stream);
+
+    timersub(&t1, &t0, &dt);
+    printf("launch_kernel took %ld.%06ld\n", dt.tv_sec, dt.tv_usec);
 
     return NULL;
 }
@@ -124,7 +137,7 @@ int main(int argc, char *argv[])
 
     float elapsed_time;
 
-    const int num_threads = 4;
+    const int num_threads = 1;
     thread_args_t args[num_threads];
 
     cudaEvent_t start_event, stop_event;

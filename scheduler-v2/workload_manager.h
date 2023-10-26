@@ -1,3 +1,5 @@
+#pragma once
+
 #include <vector>
 #include <cuda.h>
 
@@ -5,8 +7,9 @@
 
 class WorkloadManager
 {
-    WorkloadManager();
-    ~WorkloadManager();
+public:
+    WorkloadManager() {}
+    ~WorkloadManager() {}
 
     void requestLaunchKernel(kernel_args_t *kernel);
     void run();

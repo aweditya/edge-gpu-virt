@@ -8,7 +8,6 @@ parser.add_argument('--data', type=str, help='path to tegrastats log')
 args = parser.parse_args()
 
 ram_usage = []
-swap_usage = []
 cpu_usages = []
 cpu_frequencies = []
 gpu_utilization = []
@@ -16,7 +15,6 @@ gpu_frequency = []
 
 # Regular expressions for extracting data
 ram_pattern  = r'RAM (\d+)/\d+MB'
-swap_pattern = r'SWAP (\d+)/\d+MB'
 cpu_pattern  = r'CPU \[(.*?)\]'
 gpu_pattern  = r'GR3D_FREQ (\d+)%@(\d+)'
 
@@ -24,7 +22,6 @@ gpu_pattern  = r'GR3D_FREQ (\d+)%@(\d+)'
 with open(args.data, 'r') as file:
     for line in file:
         ram_usage.append(int(re.search(ram_pattern, line).group(1)))
-        swap_usage.append(int(re.search(swap_pattern, line).group(1)))
 
         cpu_usage_str = re.search(cpu_pattern, line).group(1)
         gpu_match = re.search(gpu_pattern, line)
@@ -39,13 +36,6 @@ with open(args.data, 'r') as file:
 plt.figure()
 plt.plot(ram_usage)
 plt.title('RAM Usage')
-plt.ylabel('MB')
-plt.show()
-
-# Plot SWAP usage
-plt.figure()
-plt.plot(swap_usage)
-plt.title('SWAP Usage')
 plt.ylabel('MB')
 plt.show()
 

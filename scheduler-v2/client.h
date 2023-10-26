@@ -1,6 +1,5 @@
 #pragma once
 
-#include <pthread.h>
 #include <cuda.h>
 
 #include "kernel.h"
@@ -9,44 +8,28 @@
 class Client
 {
 public:
-    Client(WorkloadManager *manager, cudaStream_t *offeredStream) : clientManager(manager), clientStream(offeredStream)
+    Client(WorkloadManager *manager, cudaStream_t *offeredStream) : clientManager(manager)
     {
-        pthread_create(&clientThread, NULL, &threadFunction, this);
+        kernel.clientStream = offeredStream;
     }
+
     ~Client()
     {
-        pthread_join(clientThread, nullptr);
-        if (clientStream)
+        if (kernel.clientStream)
         {
-            cudaStreamDestroy(clientStream);
+            cudaStreamDestroy(*(kernel.clientStream));
         }
     }
+    static void *threadFunction(void *arg);
+    void *threadFunction();
 
     virtual void setupKernel() = 0;  // Initialize host, device pointers; transfer data from host->device
     virtual void finishKernel() = 0; // Transfer data from device->host; free host, device pointers
 
-private:
+protected:
     WorkloadManager *clientManager;
     pthread_t clientThread;
-    cudaStream_t *clientStream;
+
     kernel_args_t kernel;
-
-    static void *threadFunction(void *arg)
-    {
-        Client *client = static_cast<Client *>(arg);
-
-        while (true)
-        {
-            setupKernel();
-
-            // Send the CUDA kernel to the main thread for execution
-            clientManager->requestLaunchKernel(&kernel);
-
-            // Continue running application code inside thread
-
-            finishKernel();
-        }
-
-        return nullptr;
-    }
-}
+    int blockOffsetx, blockOffsety; // For kernel slicing
+};

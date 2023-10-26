@@ -1,4 +1,5 @@
 #include "workload_manager.h"
+#include <stdio.h>
 
 void WorkloadManager::requestLaunchKernel(kernel_args_t *kernel)
 {
@@ -13,9 +14,10 @@ void WorkloadManager::requestLaunchKernel(kernel_args_t *kernel)
 void WorkloadManager::run()
 {
     int launch = 0;
+    printf("ola\n");
     while (!activeKernels.empty())
     {
-        int kernelToLaunch = launch % 2;
+        int kernelToLaunch = launch;
 
         // Launch the selected kernel asynchronously on the main thread
         cudaLaunchKernel(activeKernels[kernelToLaunch].kernel->kernelFunction,
@@ -23,7 +25,7 @@ void WorkloadManager::run()
                          activeKernels[kernelToLaunch].kernel->blockConf,
                          activeKernels[kernelToLaunch].kernel->arguments,
                          activeKernels[kernelToLaunch].kernel->sharedMem,
-                         activeKernels[kernelToLaunch].kernel->clientStream);
+                         *(activeKernels[kernelToLaunch].kernel->clientStream));
         
         activeKernels[kernelToLaunch].totalSlices--;
 
@@ -33,6 +35,5 @@ void WorkloadManager::run()
             activeKernels.erase(activeKernels.begin() + kernelToLaunch);
         }
 
-        ++launch;
     }
 }

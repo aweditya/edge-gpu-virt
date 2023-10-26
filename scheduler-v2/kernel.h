@@ -7,9 +7,9 @@ typedef struct
     dim3 blockConf;
     dim3 gridConf;
     const void *kernelFunction;
-    void **arguments;
+    void *arguments[16];
     size_t sharedMem;
-    cudaStream_t clientStream;
+    cudaStream_t *clientStream;
 } kernel_args_t;
 
 typedef struct
