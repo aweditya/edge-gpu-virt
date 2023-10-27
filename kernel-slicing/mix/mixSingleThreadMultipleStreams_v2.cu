@@ -227,6 +227,7 @@ int main(int argc, char *argv[])
     // CUDA memory allocation
     std::vector<float> matC(matArow * matBcol);
 
+    cudaEventRecord(start_event, 0);
     /* SGEMM host to device memory copy */
     // Copy A and B^T into device memory
     if (!(cudaSuccess == cudaMemcpyAsync(dA, &(sgemm_args.matA.front()), sgemm_args.A_sz, cudaMemcpyHostToDevice, sgemm_args.stream)))
@@ -356,7 +357,6 @@ int main(int argc, char *argv[])
     dim3 sgemmBlockOffset(0, 0);
     dim3 mriq1BlockOffset(0), mriq2BlockOffset(0);
 
-    cudaEventRecord(start_event, 0);
     int launch = 1;
     while (launch)
     {
@@ -407,14 +407,6 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (!(cudaSuccess == cudaEventRecord(stop_event, 0)))
-    {
-        CHECK_ERROR("cudaEventRecord");
-    }
-
-    cudaEventSynchronize(stop_event);
-    cudaEventElapsedTime(&elapsed_time, start_event, stop_event);
-
     if (!(cudaSuccess == cudaMemcpyAsync(&matC.front(), dC, sgemm_args.C_sz, cudaMemcpyDeviceToHost, sgemm_args.stream)))
     {
         CHECK_ERROR("cudaMemcpyAsync");
@@ -434,6 +426,14 @@ int main(int argc, char *argv[])
     {
         CHECK_ERROR("cudaMemcpyAsync");
     }
+
+    if (!(cudaSuccess == cudaEventRecord(stop_event, 0)))
+    {
+        CHECK_ERROR("cudaEventRecord");
+    }
+
+    cudaEventSynchronize(stop_event);
+    cudaEventElapsedTime(&elapsed_time, start_event, stop_event);
 
     cudaStreamDestroy(sgemm_args.stream);
     cudaStreamDestroy(mriq_args.stream);
@@ -462,7 +462,6 @@ int main(int argc, char *argv[])
     cudaDeviceReset();
 
     printf("Measured time for sample = %.3fms\n", elapsed_time);
-    printf("Measured time for sample = %ld.%06lds\n", dt.tv_sec, dt.tv_usec);
 
     free(kVals);
     free(phiMag);
