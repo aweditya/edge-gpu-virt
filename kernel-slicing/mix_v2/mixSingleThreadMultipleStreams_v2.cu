@@ -323,7 +323,7 @@ int main(int argc, char *argv[])
     int ldb = matBcol;
     int ldc = matArow;
 
-    int m_slicer = 1, n_slicer = 1;
+    int m_slicer = 2, n_slicer = 3;
     dim3 sgemmGridConf(m / TILE_M, n / TILE_N);
     dim3 sgemmBlockConf(TILE_N, TILE_TB_HEIGHT);
     dim3 sgemmSGridConf(m / (TILE_M * m_slicer), n / (TILE_N * n_slicer));
@@ -336,7 +336,7 @@ int main(int argc, char *argv[])
     if (mriq_args.numX % KERNEL_Q_THREADS_PER_BLOCK)
         QBlocks++;
 
-    int slicer = 1;
+    int slicer = 4;
     dim3 mriqGridConf(QBlocks, 1);
     dim3 mriqBlockConf(KERNEL_Q_THREADS_PER_BLOCK, 1);
     dim3 mriqSGridConf(QBlocks / slicer, 1);
