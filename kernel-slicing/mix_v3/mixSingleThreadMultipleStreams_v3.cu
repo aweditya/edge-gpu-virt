@@ -240,31 +240,6 @@ int main(int argc, char *argv[])
         CHECK_ERROR("cudaMemcpyAsync");
     }
 
-    if (!(cudaSuccess == cudaMemcpyAsync(x_d, mriq_args.x, mriq_args.numX * sizeof(float), cudaMemcpyHostToDevice, mriq_args.stream)))
-    {
-        CHECK_ERROR("cudaMemcpyAsync");
-    }
-
-    if (!(cudaSuccess == cudaMemcpyAsync(y_d, mriq_args.y, mriq_args.numX * sizeof(float), cudaMemcpyHostToDevice, mriq_args.stream)))
-    {
-        CHECK_ERROR("cudaMemcpyAsync");
-    }
-
-    if (!(cudaSuccess == cudaMemcpyAsync(z_d, mriq_args.z, mriq_args.numX * sizeof(float), cudaMemcpyHostToDevice, mriq_args.stream)))
-    {
-        CHECK_ERROR("cudaMemcpyAsync");
-    }
-
-    if (!(cudaSuccess == cudaMemsetAsync((void *)Qr_d, 0, mriq_args.numX * sizeof(float), mriq_args.stream)))
-    {
-        CHECK_ERROR("cudaMemsetAsync");
-    }
-
-    if (!(cudaSuccess == cudaMemsetAsync((void *)Qi_d, 0, mriq_args.numX * sizeof(float), mriq_args.stream)))
-    {
-        CHECK_ERROR("cudaMemsetAsync");
-    }
-
     /* MRI-Q PhiMag computation */
     int phiMagBlocks = mriq_args.numK / KERNEL_PHI_MAG_THREADS_PER_BLOCK;
     if (mriq_args.numK % KERNEL_PHI_MAG_THREADS_PER_BLOCK)
@@ -291,15 +266,6 @@ int main(int argc, char *argv[])
     kValues *kValsTile1 = kVals + QGridBase1, *kValsTile2 = kVals + QGridBase2;
     int numElems1 = MIN(KERNEL_Q_K_ELEMS_PER_GRID, numK - QGridBase1), numElems2 = MIN(KERNEL_Q_K_ELEMS_PER_GRID, numK - QGridBase2);
 
-    if (!(cudaSuccess == cudaMemcpyToSymbolAsync(ck, kValsTile1, numElems1 * sizeof(kValues), 0, cudaMemcpyHostToDevice, mriq_args.stream)))
-    {
-        CHECK_ERROR("cudaMemcpyToSymbolAsync");
-    }
-
-    if (!(cudaSuccess == cudaMemcpyToSymbolAsync(ck, kValsTile2, numElems2 * sizeof(kValues), 0, cudaMemcpyHostToDevice, mriq_args.stream)))
-    {
-        CHECK_ERROR("cudaMemcpyToSymbolAsync");
-    }
     /***********************************/
 
     // Use standard sgemm interface
@@ -311,7 +277,7 @@ int main(int argc, char *argv[])
     int ldb = matBcol;
     int ldc = matArow;
 
-    int m_slicer = 1, n_slicer = 1;
+    int m_slicer = 2, n_slicer = 3;
     dim3 sgemmGridConf(m / TILE_M, n / TILE_N);
     dim3 sgemmBlockConf(TILE_N, TILE_TB_HEIGHT);
     dim3 sgemmSGridConf(m / (TILE_M * m_slicer), n / (TILE_N * n_slicer));
@@ -325,11 +291,12 @@ int main(int argc, char *argv[])
     if (mriq_args.numX % KERNEL_Q_THREADS_PER_BLOCK)
         QBlocks++;
 
-    int slicer = 1;
+    int slicer = 4;
     dim3 mriqGridConf(QBlocks, 1);
     dim3 mriqBlockConf(KERNEL_Q_THREADS_PER_BLOCK, 1);
     dim3 mriqSGridConf(QBlocks / slicer, 1);
     int mriq1TotalSlices = slicer, mriq2TotalSlices = slicer;
+    int mriqState = 0;
 
     /* Printing kernel information */
     printf("(SGEMM) gridConf: (%d, %d)\n", sgemmGridConf.x, sgemmGridConf.y);
@@ -349,7 +316,7 @@ int main(int argc, char *argv[])
     int launch = 1;
     while (launch)
     {
-        if (launch % 3 == 1)
+        if (launch % 3 == 0)
         {
             if (sgemmState == 0)
             {
@@ -388,55 +355,106 @@ int main(int argc, char *argv[])
                     sgemmState++;
                 }
             }
-            else
+            else if (sgemmState == 2)
             {
                 if (!(cudaSuccess == cudaMemcpyAsync(&matC.front(), dC, sgemm_args.C_sz, cudaMemcpyDeviceToHost, sgemm_args.stream)))
                 {
                     CHECK_ERROR("cudaMemcpyAsync");
                 }
-            }
-        }
-        else if (launch % 3 == 2)
-        {
-            if (mriq1TotalSlices)
-            {
-                ComputeQ_GPU<<<mriqSGridConf, mriqBlockConf, 0, mriq_args.stream>>>(mriq_args.numK, QGridBase1, x_d, y_d, z_d, Qr_d, Qi_d, mriq1BlockOffset);
-                mriq1BlockOffset.x += mriqSGridConf.x;
 
-                mriq1TotalSlices--;
+                sgemmState++;
             }
         }
         else
         {
-            if (mriq2TotalSlices)
+            if (mriqState == 0)
             {
-                ComputeQ_GPU<<<mriqSGridConf, mriqBlockConf, 0, mriq_args.stream>>>(mriq_args.numK, QGridBase2, x_d, y_d, z_d, Qr_d, Qi_d, mriq2BlockOffset);
-                mriq2BlockOffset.x += mriqSGridConf.x;
+                if (!(cudaSuccess == cudaMemcpyAsync(x_d, mriq_args.x, mriq_args.numX * sizeof(float), cudaMemcpyHostToDevice, mriq_args.stream)))
+                {
+                    CHECK_ERROR("cudaMemcpyAsync");
+                }
 
-                mriq2TotalSlices--;
+                if (!(cudaSuccess == cudaMemcpyAsync(y_d, mriq_args.y, mriq_args.numX * sizeof(float), cudaMemcpyHostToDevice, mriq_args.stream)))
+                {
+                    CHECK_ERROR("cudaMemcpyAsync");
+                }
+
+                if (!(cudaSuccess == cudaMemcpyAsync(z_d, mriq_args.z, mriq_args.numX * sizeof(float), cudaMemcpyHostToDevice, mriq_args.stream)))
+                {
+                    CHECK_ERROR("cudaMemcpyAsync");
+                }
+
+                if (!(cudaSuccess == cudaMemsetAsync((void *)Qr_d, 0, mriq_args.numX * sizeof(float), mriq_args.stream)))
+                {
+                    CHECK_ERROR("cudaMemsetAsync");
+                }
+
+                if (!(cudaSuccess == cudaMemsetAsync((void *)Qi_d, 0, mriq_args.numX * sizeof(float), mriq_args.stream)))
+                {
+                    CHECK_ERROR("cudaMemsetAsync");
+                }
+
+                if (!(cudaSuccess == cudaMemcpyToSymbolAsync(ck, kValsTile1, numElems1 * sizeof(kValues), 0, cudaMemcpyHostToDevice, mriq_args.stream)))
+                {
+                    CHECK_ERROR("cudaMemcpyToSymbolAsync");
+                }
+
+                if (!(cudaSuccess == cudaMemcpyToSymbolAsync(ck, kValsTile2, numElems2 * sizeof(kValues), 0, cudaMemcpyHostToDevice, mriq_args.stream)))
+                {
+                    CHECK_ERROR("cudaMemcpyToSymbolAsync");
+                }
+
+                mriqState++;
+            }
+            else if (mriqState == 1)
+            {
+                if (launch % 3 == 1 && mriq1TotalSlices)
+                {
+                    ComputeQ_GPU<<<mriqSGridConf, mriqBlockConf, 0, mriq_args.stream>>>(mriq_args.numK, QGridBase1, x_d, y_d, z_d, Qr_d, Qi_d, mriq1BlockOffset);
+                    mriq1BlockOffset.x += mriqSGridConf.x;
+
+                    mriq1TotalSlices--;
+                }
+
+                if (launch % 3 == 2 && mriq2TotalSlices)
+                {
+                    ComputeQ_GPU<<<mriqSGridConf, mriqBlockConf, 0, mriq_args.stream>>>(mriq_args.numK, QGridBase2, x_d, y_d, z_d, Qr_d, Qi_d, mriq2BlockOffset);
+                    mriq2BlockOffset.x += mriqSGridConf.x;
+
+                    mriq2TotalSlices--;
+                }
+
+                if (mriq1TotalSlices == 0 && mriq2TotalSlices == 0)
+                {
+                    mriqState++;
+                }
+            }
+            else if (mriqState == 2)
+            {
+                if (!(cudaSuccess == cudaMemcpyAsync(mriq_args.phiMag, phiMag_d, mriq_args.numK * sizeof(float), cudaMemcpyDeviceToHost, mriq_args.stream)))
+                {
+                    CHECK_ERROR("cudaMemcpyAsync");
+                }
+
+                if (!(cudaSuccess == cudaMemcpyAsync(mriq_args.Qr, Qr_d, mriq_args.numX * sizeof(float), cudaMemcpyDeviceToHost, mriq_args.stream)))
+                {
+                    CHECK_ERROR("cudaMemcpyAsync");
+                }
+
+                if (!(cudaSuccess == cudaMemcpyAsync(mriq_args.Qi, Qi_d, mriq_args.numX * sizeof(float), cudaMemcpyDeviceToHost, mriq_args.stream)))
+                {
+                    CHECK_ERROR("cudaMemcpyAsync");
+                }
+
+                mriqState++;
             }
         }
 
         launch++;
-        if (sgemmTotalSlices == 0 && mriq1TotalSlices == 0 && mriq2TotalSlices == 0)
+        if (sgemmState == 3 && mriqState == 3)
         {
             launch = 0;
         }
-    }
-
-    if (!(cudaSuccess == cudaMemcpyAsync(mriq_args.phiMag, phiMag_d, mriq_args.numK * sizeof(float), cudaMemcpyDeviceToHost, mriq_args.stream)))
-    {
-        CHECK_ERROR("cudaMemcpyAsync");
-    }
-
-    if (!(cudaSuccess == cudaMemcpyAsync(mriq_args.Qr, Qr_d, mriq_args.numX * sizeof(float), cudaMemcpyDeviceToHost, mriq_args.stream)))
-    {
-        CHECK_ERROR("cudaMemcpyAsync");
-    }
-
-    if (!(cudaSuccess == cudaMemcpyAsync(mriq_args.Qi, Qi_d, mriq_args.numX * sizeof(float), cudaMemcpyDeviceToHost, mriq_args.stream)))
-    {
-        CHECK_ERROR("cudaMemcpyAsync");
     }
 
     if (!(cudaSuccess == cudaEventRecord(stop_event, 0)))
