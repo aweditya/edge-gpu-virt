@@ -291,7 +291,7 @@ int main(int argc, char *argv[])
     if (mriq_args.numX % KERNEL_Q_THREADS_PER_BLOCK)
         QBlocks++;
 
-    int slicer = 4;
+    int slicer = 8;
     dim3 mriqGridConf(QBlocks, 1);
     dim3 mriqBlockConf(KERNEL_Q_THREADS_PER_BLOCK, 1);
     dim3 mriqSGridConf(QBlocks / slicer, 1);
@@ -336,7 +336,7 @@ int main(int argc, char *argv[])
             }
             else if (sgemmState == 1 && sgemmTotalSlices)
             {
-                for (int i = 0; i < 1; ++i)
+                for (int i = 0; i < min(1, sgemmTotalSlices); ++i)
                 {
                     mysgemmNT<<<sgemmSGridConf, sgemmBlockConf, 0, sgemm_args.stream>>>(dA, lda, dB, ldb, dC, ldc, k, alpha, beta, sgemmBlockOffset);
 
