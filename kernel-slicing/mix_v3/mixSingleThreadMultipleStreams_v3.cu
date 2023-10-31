@@ -410,18 +410,24 @@ int main(int argc, char *argv[])
             {
                 if (launch % 3 == 1 && mriq1TotalSlices)
                 {
-                    ComputeQ_GPU<<<mriqSGridConf, mriqBlockConf, 0, mriq_args.stream>>>(mriq_args.numK, QGridBase1, x_d, y_d, z_d, Qr_d, Qi_d, mriq1BlockOffset);
-                    mriq1BlockOffset.x += mriqSGridConf.x;
+                    for (int i = 0; i < min(1, mriq1TotalSlices); ++i)
+                    {
+                        ComputeQ_GPU<<<mriqSGridConf, mriqBlockConf, 0, mriq_args.stream>>>(mriq_args.numK, QGridBase1, x_d, y_d, z_d, Qr_d, Qi_d, mriq1BlockOffset);
+                        mriq1BlockOffset.x += mriqSGridConf.x;
 
-                    mriq1TotalSlices--;
+                        mriq1TotalSlices--;
+                    }
                 }
 
                 if (launch % 3 == 2 && mriq2TotalSlices)
                 {
-                    ComputeQ_GPU<<<mriqSGridConf, mriqBlockConf, 0, mriq_args.stream>>>(mriq_args.numK, QGridBase2, x_d, y_d, z_d, Qr_d, Qi_d, mriq2BlockOffset);
-                    mriq2BlockOffset.x += mriqSGridConf.x;
+                    for (int i = 0; i < min(1, mriq2TotalSlices); ++i)
+                    {
+                        ComputeQ_GPU<<<mriqSGridConf, mriqBlockConf, 0, mriq_args.stream>>>(mriq_args.numK, QGridBase2, x_d, y_d, z_d, Qr_d, Qi_d, mriq2BlockOffset);
+                        mriq2BlockOffset.x += mriqSGridConf.x;
 
-                    mriq2TotalSlices--;
+                        mriq2TotalSlices--;
+                    }
                 }
 
                 if (mriq1TotalSlices == 0 && mriq2TotalSlices == 0)
