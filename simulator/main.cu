@@ -53,7 +53,7 @@ void finishCuda()
 int main(int argc, char **argv)
 {
     const std::string moduleFile = "matrixAdd.ptx";
-    const std::string kernelName = "_Z8matrxAddPdS_S_i";
+    const std::string kernelName = "matrixAdd";
 
     initCuda();
 
