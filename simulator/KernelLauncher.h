@@ -24,18 +24,19 @@ typedef struct kernel_attr
 class KernelLauncher
 {
 public:
-    KernelLauncher(CUcontext *context,
+    KernelLauncher(int id,
+                   CUcontext *context,
                    const std::string &moduleFile,
                    const std::string &kernelName,
                    kernel_attr_t *attr,
-                   KernelCallback *kernelCallback) : context(context),
+                   KernelCallback *kernelCallback) : id(id),
+                                                     context(context),
                                                      moduleFile(moduleFile),
                                                      kernelName(kernelName),
                                                      attr(attr)
     {
         callback = kernelCallback;
         kernelParams = callback->args;
-        id = rand();
         callback->setLauncherID(id);
     }
 

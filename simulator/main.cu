@@ -52,30 +52,48 @@ void finishCuda()
 
 int main(int argc, char **argv)
 {
-    const std::string moduleFile = "matrixAdd.ptx";
+    srand(0);
+
+    const std::string moduleFile1 = "matrixAdd1.ptx";
+    const std::string moduleFile2 = "matrixAdd2.ptx";
     const std::string kernelName = "matrixAdd";
 
     initCuda();
 
-    CUstream stream;
-    checkCudaErrors(cuStreamCreate(&stream, CU_STREAM_DEFAULT));
+    CUstream stream1, stream2;
+    checkCudaErrors(cuStreamCreate(&stream1, CU_STREAM_DEFAULT));
+    checkCudaErrors(cuStreamCreate(&stream2, CU_STREAM_DEFAULT));
 
-    MatrixAddCallback matrixAddCallback;
+    MatrixAddCallback matrixAddCallback1, matrixAddCallback2;
 
-    kernel_attr_t attr = {.gridDimX = 1,
-                          .gridDimY = 1,
-                          .gridDimZ = 1,
-                          .blockDimX = N,
-                          .blockDimY = 1,
-                          .blockDimZ = 1,
-                          .sharedMemBytes = 0,
-                          .stream = stream};
-    KernelLauncher launcher(&context, moduleFile, kernelName, &attr, &matrixAddCallback);
+    kernel_attr_t attr1 = {
+        .gridDimX = 1,
+        .gridDimY = 1,
+        .gridDimZ = 1,
+        .blockDimX = N,
+        .blockDimY = 1,
+        .blockDimZ = 1,
+        .sharedMemBytes = 0,
+        .stream = stream1};
+    kernel_attr_t attr2 = {
+        .gridDimX = 1,
+        .gridDimY = 1,
+        .gridDimZ = 1,
+        .blockDimX = N,
+        .blockDimY = 1,
+        .blockDimZ = 1,
+        .sharedMemBytes = 0,
+        .stream = stream2};
 
-    launcher.launch();
+    KernelLauncher launcher1(rand(), &context, moduleFile1, kernelName, &attr1, &matrixAddCallback1);
+    KernelLauncher launcher2(rand(), &context, moduleFile2, kernelName, &attr2, &matrixAddCallback2);
+
+    launcher1.launch();
+    launcher2.launch();
     sleep(5);
 
-    checkCudaErrors(cuStreamDestroy(stream));
+    checkCudaErrors(cuStreamDestroy(stream1));
+    checkCudaErrors(cuStreamDestroy(stream2));
     finishCuda();
 
     return 0;
