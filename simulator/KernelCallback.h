@@ -22,7 +22,7 @@ public:
 
     void *args[8];
 
-private:
+protected:
     int launcherID;
 };
 

@@ -40,14 +40,16 @@ public:
         callback->setLauncherID(id);
     }
 
-    ~KernelLauncher()
-    {
-        pthread_join(thread, NULL);
-    }
+    ~KernelLauncher() {}
 
     void launch()
     {
         pthread_create(&thread, NULL, threadFunction, this);
+    }
+
+    void finish()
+    {
+        pthread_join(thread, NULL);
     }
 
 private:

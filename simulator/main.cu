@@ -90,7 +90,9 @@ int main(int argc, char **argv)
 
     launcher1.launch();
     launcher2.launch();
-    sleep(5);
+
+    launcher1.finish();
+    launcher2.finish();
 
     checkCudaErrors(cuStreamDestroy(stream1));
     checkCudaErrors(cuStreamDestroy(stream2));
