@@ -2,9 +2,11 @@
 
 void *KernelLauncher::threadFunction()
 {
+    checkCudaErrors(cuModuleLoad(&module, moduleFile.c_str()));
+    checkCudaErrors(cuModuleGetFunction(&function, module, kernelName.c_str()));
     callback->memAlloc();
-    callback->memcpyHtoD();
-    callback->memcpyDtoH();
+    callback->memcpyHtoD(stream);
+    callback->memcpyDtoH(stream);
     callback->memFree();
 
     return NULL;

@@ -11,13 +11,13 @@ void MatrixAddCallback::memAlloc()
     checkCudaErrors(cuMemAlloc(&d_c, N * sizeof(double)));
 }
 
-void MatrixAddCallback::memcpyHtoD()
+void MatrixAddCallback::memcpyHtoD(const CUstream &stream)
 {
     checkCudaErrors(cuMemcpyHtoDAsync(d_a, h_a, N * sizeof(double), stream));
     checkCudaErrors(cuMemcpyHtoDAsync(d_b, h_b, N * sizeof(double), stream));
 }
 
-void MatrixAddCallback::memcpyDtoH()
+void MatrixAddCallback::memcpyDtoH(const CUstream &stream)
 {
     checkCudaErrors(cuMemcpyDtoHAsync(h_c, d_c, N * sizeof(double), stream));
 }

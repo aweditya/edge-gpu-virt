@@ -12,10 +12,11 @@
 class KernelLauncher
 {
 public:
-    KernelLauncher(const std::string &moduleFile, const std::string &kernelName, KernelCallback *kernelCallback)
+    KernelLauncher(const std::string &moduleFile,
+                   const std::string &kernelName,
+                   const CUstream &stream,
+                   KernelCallback *kernelCallback) : moduleFile(moduleFile), kernelName(kernelName), stream(stream)
     {
-        checkCudaErrors(cuModuleLoad(&module, moduleFile.c_str()));
-        checkCudaErrors(cuModuleGetFunction(&function, module, kernelName.c_str()));
         callback = kernelCallback;
     }
 
@@ -31,8 +32,11 @@ public:
 
 private:
     pthread_t thread;
+    std::string moduleFile;
+    std::string kernelName;
     CUmodule module;
     CUfunction function;
+    CUstream stream;
     KernelCallback *callback;
 
     static void *threadFunction(void *args)

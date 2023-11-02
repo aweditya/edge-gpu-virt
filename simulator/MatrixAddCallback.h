@@ -14,8 +14,8 @@ public:
     ~MatrixAddCallback();
 
     void memAlloc();
-    void memcpyHtoD();
-    void memcpyDtoH();
+    void memcpyHtoD(const CUstream &stream);
+    void memcpyDtoH(const CUstream &stream);
     void memFree();
 
 private:
