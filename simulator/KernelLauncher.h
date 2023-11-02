@@ -14,10 +14,28 @@ class KernelLauncher
 public:
     KernelLauncher(const std::string &moduleFile,
                    const std::string &kernelName,
+                   unsigned int gridDimX,
+                   unsigned int gridDimY,
+                   unsigned int gridDimZ,
+                   unsigned int blockDimX,
+                   unsigned int blockDimY,
+                   unsigned int blockDimZ,
+                   unsigned int sharedMemBytes,
                    const CUstream &stream,
-                   KernelCallback *kernelCallback) : moduleFile(moduleFile), kernelName(kernelName), stream(stream)
+                   KernelCallback *kernelCallback) : moduleFile(moduleFile),
+                                                     kernelName(kernelName),
+                                                     gridDimX(gridDimX),
+                                                     gridDimY(gridDimY),
+                                                     gridDimZ(gridDimZ),
+                                                     blockDimX(blockDimX),
+                                                     blockDimY(blockDimY),
+                                                     blockDimZ(blockDimZ),
+                                                     sharedMemBytes(sharedMemBytes),
+                                                     stream(stream)
     {
         callback = kernelCallback;
+        kernelParams = callback->args;
+        callback->setLauncherID(rand());
     }
 
     ~KernelLauncher()
@@ -36,7 +54,16 @@ private:
     std::string kernelName;
     CUmodule module;
     CUfunction function;
+
+    unsigned int gridDimX;
+    unsigned int gridDimY;
+    unsigned int gridDimZ;
+    unsigned int blockDimX;
+    unsigned int blockDimY;
+    unsigned int blockDimZ;
+    unsigned int sharedMemBytes;
     CUstream stream;
+    void **kernelParams;
     KernelCallback *callback;
 
     static void *threadFunction(void *args)
@@ -45,6 +72,11 @@ private:
         return kernelLauncher->threadFunction();
     }
     void *threadFunction();
+
+    void launchKernel()
+    {
+        checkCudaErrors(cuLaunchKernel(function, gridDimX, gridDimY, gridDimZ, blockDimX, blockDimY, blockDimZ, sharedMemBytes, stream, kernelParams, NULL));
+    }
 };
 
 #endif

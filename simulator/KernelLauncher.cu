@@ -6,6 +6,7 @@ void *KernelLauncher::threadFunction()
     checkCudaErrors(cuModuleGetFunction(&function, module, kernelName.c_str()));
     callback->memAlloc();
     callback->memcpyHtoD(stream);
+    launchKernel();
     callback->memcpyDtoH(stream);
     callback->memFree();
 
