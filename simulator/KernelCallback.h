@@ -9,6 +9,9 @@
 class KernelCallback
 {
 public:
+    KernelCallback() {}
+    ~KernelCallback() {}
+
     virtual void memAlloc() = 0;
     virtual void memcpyHtoD(const CUstream &stream) = 0;
     virtual void memcpyDtoH(const CUstream &stream) = 0;
