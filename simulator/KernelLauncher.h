@@ -9,33 +9,34 @@
 #include "KernelCallback.h"
 #include "errchk.h"
 
+typedef struct kernel_attr
+{
+    unsigned int gridDimX;
+    unsigned int gridDimY;
+    unsigned int gridDimZ;
+    unsigned int blockDimX;
+    unsigned int blockDimY;
+    unsigned int blockDimZ;
+    unsigned int sharedMemBytes;
+    CUstream stream;
+} kernel_attr_t;
+
 class KernelLauncher
 {
 public:
-    KernelLauncher(const std::string &moduleFile,
+    KernelLauncher(CUcontext *context,
+                   const std::string &moduleFile,
                    const std::string &kernelName,
-                   unsigned int gridDimX,
-                   unsigned int gridDimY,
-                   unsigned int gridDimZ,
-                   unsigned int blockDimX,
-                   unsigned int blockDimY,
-                   unsigned int blockDimZ,
-                   unsigned int sharedMemBytes,
-                   const CUstream &stream,
-                   KernelCallback *kernelCallback) : moduleFile(moduleFile),
+                   kernel_attr_t *attr,
+                   KernelCallback *kernelCallback) : context(context),
+                                                     moduleFile(moduleFile),
                                                      kernelName(kernelName),
-                                                     gridDimX(gridDimX),
-                                                     gridDimY(gridDimY),
-                                                     gridDimZ(gridDimZ),
-                                                     blockDimX(blockDimX),
-                                                     blockDimY(blockDimY),
-                                                     blockDimZ(blockDimZ),
-                                                     sharedMemBytes(sharedMemBytes),
-                                                     stream(stream)
+                                                     attr(attr)
     {
         callback = kernelCallback;
         kernelParams = callback->args;
-        callback->setLauncherID(rand());
+        id = rand();
+        callback->setLauncherID(id);
     }
 
     ~KernelLauncher()
@@ -49,33 +50,51 @@ public:
     }
 
 private:
+    int id;
+    CUcontext *context;
     pthread_t thread;
     std::string moduleFile;
     std::string kernelName;
     CUmodule module;
     CUfunction function;
 
-    unsigned int gridDimX;
-    unsigned int gridDimY;
-    unsigned int gridDimZ;
-    unsigned int blockDimX;
-    unsigned int blockDimY;
-    unsigned int blockDimZ;
-    unsigned int sharedMemBytes;
-    CUstream stream;
+    kernel_attr_t *attr;
     void **kernelParams;
     KernelCallback *callback;
+
+    void *threadFunction()
+    {
+        checkCudaErrors(cuCtxSetCurrent(*context));
+        checkCudaErrors(cuModuleLoad(&module, moduleFile.c_str()));
+        checkCudaErrors(cuModuleGetFunction(&function, module, kernelName.c_str()));
+        callback->memAlloc();
+        callback->memcpyHtoD(attr->stream);
+        launchKernel();
+        callback->memcpyDtoH(attr->stream);
+        callback->memFree();
+
+        return NULL;
+    }
 
     static void *threadFunction(void *args)
     {
         KernelLauncher *kernelLauncher = static_cast<KernelLauncher *>(args);
         return kernelLauncher->threadFunction();
     }
-    void *threadFunction();
 
     void launchKernel()
     {
-        checkCudaErrors(cuLaunchKernel(function, gridDimX, gridDimY, gridDimZ, blockDimX, blockDimY, blockDimZ, sharedMemBytes, stream, kernelParams, NULL));
+        checkCudaErrors(cuLaunchKernel(function,
+                                       attr->gridDimX,
+                                       attr->gridDimY,
+                                       attr->gridDimZ,
+                                       attr->blockDimX,
+                                       attr->blockDimY,
+                                       attr->blockDimZ,
+                                       attr->sharedMemBytes,
+                                       attr->stream,
+                                       kernelParams,
+                                       0));
     }
 };
 

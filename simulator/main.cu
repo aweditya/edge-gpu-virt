@@ -53,14 +53,27 @@ void finishCuda()
 int main(int argc, char **argv)
 {
     const std::string moduleFile = "matrixAdd.ptx";
-    const std::string kernelName = "matrixAdd";
+    const std::string kernelName = "_Z8matrxAddPdS_S_i";
 
     initCuda();
 
     CUstream stream;
     checkCudaErrors(cuStreamCreate(&stream, CU_STREAM_DEFAULT));
+
     MatrixAddCallback matrixAddCallback;
-    KernelLauncher launcher(moduleFile, kernelName, 1, 0, 0, N, 0, 0, 0, stream, &matrixAddCallback);
+
+    kernel_attr_t attr = {.gridDimX = 1,
+                          .gridDimY = 1,
+                          .gridDimZ = 1,
+                          .blockDimX = N,
+                          .blockDimY = 1,
+                          .blockDimZ = 1,
+                          .sharedMemBytes = 0,
+                          .stream = stream};
+    KernelLauncher launcher(&context, moduleFile, kernelName, &attr, &matrixAddCallback);
+
+    launcher.launch();
+    sleep(5);
 
     checkCudaErrors(cuStreamDestroy(stream));
     finishCuda();

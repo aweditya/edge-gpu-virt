@@ -17,8 +17,8 @@ public:
     ~MatrixAddCallback() {}
 
     void memAlloc();
-    void memcpyHtoD(const CUstream &stream);
-    void memcpyDtoH(const CUstream &stream);
+    void memcpyHtoD(const cudaStream_t &stream);
+    void memcpyDtoH(const cudaStream_t &stream);
     void memFree();
 
 private:

@@ -21,6 +21,11 @@ void MatrixAddCallback::memAlloc()
     checkCudaErrors(cuMemAlloc(&d_b, N * sizeof(double)));
     checkCudaErrors(cuMemAlloc(&d_c, N * sizeof(double)));
 
+    for (int i = 0; i < N; ++i)
+    {
+        printf("%.3f, %.3f\n", h_a[i], h_b[i]);
+    }
+
     args[0] = &d_a;
     args[1] = &d_b;
     args[2] = &d_c;
