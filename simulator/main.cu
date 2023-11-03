@@ -54,15 +54,17 @@ int main(int argc, char **argv)
 {
     srand(0);
 
-    const std::string moduleFile1 = "matrixAdd1.ptx";
+    const std::string moduleFile1 = "./ptx/matrixAdd1.ptx";
+    const std::string moduleFile2 = "./ptx/matrixAdd2.ptx";
     const std::string kernelName = "matrixAdd";
 
     initCuda();
 
-    CUstream stream1;
+    CUstream stream1, stream2;
     checkCudaErrors(cuStreamCreate(&stream1, CU_STREAM_DEFAULT));
+    checkCudaErrors(cuStreamCreate(&stream2, CU_STREAM_DEFAULT));
 
-    MatrixAddCallback matrixAddCallback1;
+    MatrixAddCallback matrixAddCallback1, matrixAddCallback2;
 
     kernel_attr_t attr1 = {
         .gridDimX = 2,
@@ -77,9 +79,27 @@ int main(int argc, char **argv)
         .sharedMemBytes = 0,
         .stream = stream1};
 
+    kernel_attr_t attr2 = {
+        .gridDimX = 2,
+        .gridDimY = 1,
+        .gridDimZ = 1,
+        .blockDimX = N / 2,
+        .blockDimY = 1,
+        .blockDimZ = 1,
+        .sGridDimX = 1,
+        .sGridDimY = 1,
+        .sGridDimZ = 1,
+        .sharedMemBytes = 0,
+        .stream = stream2};
+
     KernelLauncher launcher1(rand(), &context, moduleFile1, kernelName, &attr1, &matrixAddCallback1);
+    KernelLauncher launcher2(rand(), &context, moduleFile2, kernelName, &attr2, &matrixAddCallback2);
+
     launcher1.launch();
+    launcher2.launch();
+
     launcher1.finish();
+    launcher2.finish();
 
     checkCudaErrors(cuStreamDestroy(stream1));
     finishCuda();

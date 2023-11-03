@@ -107,6 +107,7 @@ private:
     {
         while (totalSlices--)
         {
+            printf("[%d] slices left = %d\n", id, totalSlices);
             checkCudaErrors(cuLaunchKernel(function,
                                            attr->sGridDimX,
                                            attr->sGridDimY,
