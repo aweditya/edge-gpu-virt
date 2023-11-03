@@ -10,10 +10,7 @@
 class MatrixAddCallback : public KernelCallback
 {
 public:
-    MatrixAddCallback()
-    {
-        blockOffset = 0;
-    }
+    MatrixAddCallback() {}
     ~MatrixAddCallback() {}
 
     void memAlloc();
@@ -24,7 +21,6 @@ public:
 private:
     double *h_a, *h_b, *h_c;
     CUdeviceptr d_a, d_b, d_c;
-    int blockOffset;
 };
 
 #endif

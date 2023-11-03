@@ -14,9 +14,19 @@ typedef struct kernel_attr
     unsigned int gridDimX;
     unsigned int gridDimY;
     unsigned int gridDimZ;
+
     unsigned int blockDimX;
     unsigned int blockDimY;
     unsigned int blockDimZ;
+
+    unsigned int sGridDimX;
+    unsigned int sGridDimY;
+    unsigned int sGridDimZ;
+
+    unsigned int blockOffsetX = 0;
+    unsigned int blockOffsetY = 0;
+    unsigned int blockOffsetZ = 0;
+
     unsigned int sharedMemBytes;
     CUstream stream;
 } kernel_attr_t;
@@ -38,6 +48,12 @@ public:
         callback = kernelCallback;
         kernelParams = callback->args;
         callback->setLauncherID(id);
+        
+        callback->args[0] = &(attr->blockOffsetX);
+        callback->args[1] = &(attr->blockOffsetY);
+        callback->args[2] = &(attr->blockOffsetZ);
+
+        totalSlices = (attr->gridDimX * attr->gridDimY * attr->gridDimZ) / (attr->sGridDimX * attr->sGridDimY * attr->sGridDimZ);
     }
 
     ~KernelLauncher() {}
@@ -65,6 +81,8 @@ private:
     void **kernelParams;
     KernelCallback *callback;
 
+    unsigned int totalSlices;
+
     void *threadFunction()
     {
         checkCudaErrors(cuCtxSetCurrent(*context));
@@ -87,17 +105,34 @@ private:
 
     void launchKernel()
     {
-        checkCudaErrors(cuLaunchKernel(function,
-                                       attr->gridDimX,
-                                       attr->gridDimY,
-                                       attr->gridDimZ,
-                                       attr->blockDimX,
-                                       attr->blockDimY,
-                                       attr->blockDimZ,
-                                       attr->sharedMemBytes,
-                                       attr->stream,
-                                       kernelParams,
-                                       0));
+        while (totalSlices--)
+        {
+            checkCudaErrors(cuLaunchKernel(function,
+                                           attr->sGridDimX,
+                                           attr->sGridDimY,
+                                           attr->sGridDimZ,
+                                           attr->blockDimX,
+                                           attr->blockDimY,
+                                           attr->blockDimZ,
+                                           attr->sharedMemBytes,
+                                           attr->stream,
+                                           kernelParams,
+                                           nullptr));
+
+            attr->blockOffsetX += attr->sGridDimX;
+            while (attr->blockOffsetX >= attr->gridDimX)
+            {
+                attr->blockOffsetX -= attr->gridDimX;
+                attr->blockOffsetY += attr->sGridDimY;
+            }
+
+            while (attr->blockOffsetY >= attr->gridDimY)
+            {
+                attr->blockOffsetY -= attr->gridDimY;
+                attr->blockOffsetZ += attr->sGridDimZ;
+            }
+
+        }
     }
 };
 

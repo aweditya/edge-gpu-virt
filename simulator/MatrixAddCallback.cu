@@ -26,10 +26,9 @@ void MatrixAddCallback::memAlloc()
         printf("[%d] %.3f, %.3f\n", launcherID, h_a[i], h_b[i]);
     }
 
-    args[0] = &d_a;
-    args[1] = &d_b;
-    args[2] = &d_c;
-    args[3] = &blockOffset;
+    args[3] = &d_a;
+    args[4] = &d_b;
+    args[5] = &d_c;
 }
 
 void MatrixAddCallback::memcpyHtoD(const CUstream &stream)

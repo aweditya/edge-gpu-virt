@@ -13,10 +13,12 @@
 	// .globl	matrixAdd
 
 .visible .entry matrixAdd(
-	.param .u64 matrixAdd_param_0,
-	.param .u64 matrixAdd_param_1,
-	.param .u64 matrixAdd_param_2,
-	.param .u32 matrixAdd_param_3
+	.param .u32 matrixAdd_param_0,
+	.param .u32 matrixAdd_param_1,
+	.param .u32 matrixAdd_param_2,
+	.param .u64 matrixAdd_param_3,
+	.param .u64 matrixAdd_param_4,
+	.param .u64 matrixAdd_param_5
 )
 {
 	.reg .pred 	%p<2>;
@@ -25,10 +27,10 @@
 	.reg .b64 	%rd<11>;
 
 
-	ld.param.u64 	%rd1, [matrixAdd_param_0];
-	ld.param.u64 	%rd2, [matrixAdd_param_1];
-	ld.param.u64 	%rd3, [matrixAdd_param_2];
-	ld.param.u32 	%r2, [matrixAdd_param_3];
+	ld.param.u32 	%r2, [matrixAdd_param_0];
+	ld.param.u64 	%rd1, [matrixAdd_param_3];
+	ld.param.u64 	%rd2, [matrixAdd_param_4];
+	ld.param.u64 	%rd3, [matrixAdd_param_5];
 	mov.u32 	%r3, %ctaid.x;
 	add.s32 	%r4, %r3, %r2;
 	mov.u32 	%r5, %ntid.x;
