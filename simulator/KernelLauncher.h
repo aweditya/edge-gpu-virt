@@ -31,6 +31,21 @@ typedef struct kernel_attr
     CUstream stream;
 } kernel_attr_t;
 
+enum kstate
+{
+    READY = 0,
+    RUNNING = 1
+};
+
+typedef struct kernel_control_block
+{
+    pthread_mutex_t kernel_lock;
+    pthread_cond_t kernel_signal;
+    kstate state = READY;
+    unsigned int slicesToLaunch = 1;
+    unsigned int totalSlices;
+} kernel_control_block_t;
+
 class KernelLauncher
 {
 public:
@@ -39,21 +54,23 @@ public:
                    const std::string &moduleFile,
                    const std::string &kernelName,
                    kernel_attr_t *attr,
+                   kernel_control_block *kcb,
                    KernelCallback *kernelCallback) : id(id),
                                                      context(context),
                                                      moduleFile(moduleFile),
                                                      kernelName(kernelName),
-                                                     attr(attr)
+                                                     attr(attr),
+                                                     kcb(kcb)
     {
         callback = kernelCallback;
         kernelParams = callback->args;
         callback->setLauncherID(id);
-        
+
         callback->args[0] = &(attr->blockOffsetX);
         callback->args[1] = &(attr->blockOffsetY);
         callback->args[2] = &(attr->blockOffsetZ);
 
-        totalSlices = (attr->gridDimX * attr->gridDimY * attr->gridDimZ) / (attr->sGridDimX * attr->sGridDimY * attr->sGridDimZ);
+        kcb->totalSlices = (attr->gridDimX * attr->gridDimY * attr->gridDimZ) / (attr->sGridDimX * attr->sGridDimY * attr->sGridDimZ);
     }
 
     ~KernelLauncher() {}
@@ -68,6 +85,8 @@ public:
         pthread_join(thread, NULL);
     }
 
+    kernel_control_block_t *kcb;
+
 private:
     int id;
     CUcontext *context;
@@ -78,10 +97,9 @@ private:
     CUfunction function;
 
     kernel_attr_t *attr;
+
     void **kernelParams;
     KernelCallback *callback;
-
-    unsigned int totalSlices;
 
     void *threadFunction()
     {
@@ -90,7 +108,18 @@ private:
         checkCudaErrors(cuModuleGetFunction(&function, module, kernelName.c_str()));
         callback->memAlloc();
         callback->memcpyHtoD(attr->stream);
-        launchKernel();
+
+        while (kcb->totalSlices)
+        {
+            pthread_mutex_lock(&kcb->kernel_lock);
+            while (kcb->state == READY)
+            {
+                pthread_cond_wait(&kcb->kernel_signal, &kcb->kernel_lock);
+            }
+            launchKernel();
+            pthread_mutex_unlock(&kcb->kernel_lock);
+        }
+
         callback->memcpyDtoH(attr->stream);
         callback->memFree();
 
@@ -105,9 +134,9 @@ private:
 
     void launchKernel()
     {
-        while (totalSlices--)
+        for (int i = 0; i < min(kcb->slicesToLaunch, kcb->totalSlices); ++i)
         {
-            printf("[%d] slices left = %d\n", id, totalSlices);
+            printf("[%d] slices left = %d\n", id, kcb->totalSlices);
             checkCudaErrors(cuLaunchKernel(function,
                                            attr->sGridDimX,
                                            attr->sGridDimY,
@@ -132,8 +161,10 @@ private:
                 attr->blockOffsetY -= attr->gridDimY;
                 attr->blockOffsetZ += attr->sGridDimZ;
             }
-
         }
+
+        kcb->totalSlices -= kcb->slicesToLaunch;
+        kcb->state = READY;
     }
 };
 

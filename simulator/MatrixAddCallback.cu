@@ -21,10 +21,10 @@ void MatrixAddCallback::memAlloc()
     checkCudaErrors(cuMemAlloc(&d_b, N * sizeof(double)));
     checkCudaErrors(cuMemAlloc(&d_c, N * sizeof(double)));
 
-    for (int i = 0; i < N; ++i)
-    {
-        printf("[%d] %.3f, %.3f\n", launcherID, h_a[i], h_b[i]);
-    }
+    // for (int i = 0; i < N; ++i)
+    // {
+    //     printf("[%d] %.3f, %.3f\n", launcherID, h_a[i], h_b[i]);
+    // }
 
     args[3] = &d_a;
     args[4] = &d_b;
@@ -44,10 +44,10 @@ void MatrixAddCallback::memcpyDtoH(const CUstream &stream)
 
 void MatrixAddCallback::memFree()
 {
-    for (int i = 0; i < N; ++i)
-    {
-        printf("[%d] %.3f, %.3f, %.3f\n", launcherID, h_a[i], h_b[i], h_c[i]);
-    }
+    // for (int i = 0; i < N; ++i)
+    // {
+    //     printf("[%d] %.3f, %.3f, %.3f\n", launcherID, h_a[i], h_b[i], h_c[i]);
+    // }
 
     checkCudaErrors(cuMemFree(d_a));
     checkCudaErrors(cuMemFree(d_b));

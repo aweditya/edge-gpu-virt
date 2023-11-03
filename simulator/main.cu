@@ -67,36 +67,63 @@ int main(int argc, char **argv)
     MatrixAddCallback matrixAddCallback1, matrixAddCallback2;
 
     kernel_attr_t attr1 = {
-        .gridDimX = 2,
+        .gridDimX = N / 128,
         .gridDimY = 1,
         .gridDimZ = 1,
-        .blockDimX = N / 2,
+        .blockDimX = 128,
         .blockDimY = 1,
         .blockDimZ = 1,
-        .sGridDimX = 1,
+        .sGridDimX = N / (128 * 16),
         .sGridDimY = 1,
         .sGridDimZ = 1,
         .sharedMemBytes = 0,
         .stream = stream1};
 
     kernel_attr_t attr2 = {
-        .gridDimX = 2,
+        .gridDimX = N / 128,
         .gridDimY = 1,
         .gridDimZ = 1,
-        .blockDimX = N / 2,
+        .blockDimX = 128,
         .blockDimY = 1,
         .blockDimZ = 1,
-        .sGridDimX = 1,
+        .sGridDimX = N / (128 * 16),
         .sGridDimY = 1,
         .sGridDimZ = 1,
         .sharedMemBytes = 0,
         .stream = stream2};
 
-    KernelLauncher launcher1(rand(), &context, moduleFile1, kernelName, &attr1, &matrixAddCallback1);
-    KernelLauncher launcher2(rand(), &context, moduleFile2, kernelName, &attr2, &matrixAddCallback2);
+    kernel_control_block_t kcb1, kcb2;
+    pthread_mutex_init(&(kcb1.kernel_lock), NULL);
+    pthread_cond_init(&(kcb1.kernel_signal), NULL);
+
+    pthread_mutex_init(&(kcb2.kernel_lock), NULL);
+    pthread_cond_init(&(kcb2.kernel_signal), NULL);
+
+    KernelLauncher launcher1(rand(), &context, moduleFile1, kernelName, &attr1, &kcb1, &matrixAddCallback1);
+    KernelLauncher launcher2(rand(), &context, moduleFile2, kernelName, &attr2, &kcb2, &matrixAddCallback2);
 
     launcher1.launch();
     launcher2.launch();
+
+    while (true)
+    {
+        pthread_mutex_lock(&(kcb1.kernel_lock));
+        kcb1.slicesToLaunch = 2;
+        kcb1.state = RUNNING;
+        pthread_cond_signal(&(kcb1.kernel_signal));
+        pthread_mutex_unlock(&(kcb1.kernel_lock));
+
+        pthread_mutex_lock(&(kcb2.kernel_lock));
+        kcb2.slicesToLaunch = 1;
+        kcb2.state = RUNNING;
+        pthread_cond_signal(&(kcb2.kernel_signal));
+        pthread_mutex_unlock(&(kcb2.kernel_lock));
+
+        if (kcb1.totalSlices == 0 && kcb2.totalSlices == 0)
+        {
+            break;
+        }
+    }
 
     launcher1.finish();
     launcher2.finish();
