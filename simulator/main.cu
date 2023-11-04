@@ -65,11 +65,7 @@ int main(int argc, char **argv)
     checkCudaErrors(cuStreamCreate(&stream1, CU_STREAM_DEFAULT));
     checkCudaErrors(cuStreamCreate(&stream2, CU_STREAM_DEFAULT));
 
-<<<<<<< HEAD
-    MatrixAddCallback matrixAddCallback1, matrixAddCallback2;
-=======
-    MatrixAddKernel matrixAddKernel1;
->>>>>>> main
+    MatrixAddKernel matrixAddKernel1, matrixAddKernel2;
     kernel_attr_t attr1 = {
         .gridDimX = N,
         .gridDimY = 1,
@@ -83,7 +79,6 @@ int main(int argc, char **argv)
         .sharedMemBytes = 0,
         .stream = stream1};
 
-<<<<<<< HEAD
     kernel_attr_t attr2 = {
         .gridDimX = N,
         .gridDimY = 1,
@@ -97,18 +92,14 @@ int main(int argc, char **argv)
         .sharedMemBytes = 0,
         .stream = stream2};
 
-    KernelLauncher launcher1(&scheduler, context, moduleFile1, kernelName, &attr1, &matrixAddCallback1);
-    KernelLauncher launcher2(&scheduler, context, moduleFile2, kernelName, &attr2, &matrixAddCallback2);
 
-    launcher1.launch();
-    launcher2.launch();
 
     int time = 0;
-=======
     KernelWrapper wrapper1(&scheduler, context, moduleFile1, kernelName, &attr1, &matrixAddKernel1);
+    KernelWrapper wrapper2(&scheduler, context, moduleFile2, kernelName, &attr2, &matrixAddKernel2);
 
     wrapper1.launch();
->>>>>>> main
+    wrapper2.launch();
     while (true)
     {
         if (scheduler.activeKernels.size() == 0)
@@ -156,12 +147,8 @@ int main(int argc, char **argv)
         }
     }
 
-<<<<<<< HEAD
-    launcher1.finish();
-    launcher2.finish();
-=======
     wrapper1.finish();
->>>>>>> main
+    wrapper2.finish();
 
     checkCudaErrors(cuStreamDestroy(stream1));
     checkCudaErrors(cuStreamDestroy(stream2));
