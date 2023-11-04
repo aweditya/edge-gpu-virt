@@ -1,10 +1,17 @@
 #include "KernelControlBlock.h"
 
+void set_state(kernel_control_block_t *kcb, kstate state)
+{
+    pthread_mutex_lock(&(kcb->kernel_lock));
+    kcb->state = state;
+    pthread_mutex_unlock(&(kcb->kernel_lock));
+}
+
 void kernel_control_block_init(kernel_control_block_t *kcb, unsigned int totalSlices)
 {
     pthread_mutex_init(&(kcb->kernel_lock), NULL);
     pthread_cond_init(&(kcb->kernel_signal), NULL);
-    kcb->state = INIT;
+    set_state(kcb, INIT);
     kcb->slicesToLaunch = 1;
     kcb->totalSlices = totalSlices;
 }

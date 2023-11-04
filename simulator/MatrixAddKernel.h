@@ -6,13 +6,13 @@
 #include <pthread.h>
 
 #include "matrixAdd.h"
-#include "KernelCallback.h"
+#include "Kernel.h"
 
-class MatrixAddCallback : public KernelCallback
+class MatrixAddKernel : public Kernel
 {
 public:
-    MatrixAddCallback() {}
-    ~MatrixAddCallback() {}
+    MatrixAddKernel() {}
+    ~MatrixAddKernel() {}
 
     void memAlloc();
     void memcpyHtoD(const cudaStream_t &stream);

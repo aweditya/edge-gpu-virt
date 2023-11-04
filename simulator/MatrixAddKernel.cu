@@ -1,11 +1,11 @@
-#include "MatrixAddCallback.h"
+#include "MatrixAddKernel.h"
 
 double drand(const double lo = 0.0, const double hi = 1.0) 
 {
     return lo + (hi - lo) / RAND_MAX * rand();
 }
 
-void MatrixAddCallback::memAlloc()
+void MatrixAddKernel::memAlloc()
 {
     h_a = (double *)malloc(N * sizeof(double));
     h_b = (double *)malloc(N * sizeof(double));
@@ -31,18 +31,18 @@ void MatrixAddCallback::memAlloc()
     args[5] = &d_c;
 }
 
-void MatrixAddCallback::memcpyHtoD(const CUstream &stream)
+void MatrixAddKernel::memcpyHtoD(const CUstream &stream)
 {
     checkCudaErrors(cuMemcpyHtoDAsync(d_a, h_a, N * sizeof(double), stream));
     checkCudaErrors(cuMemcpyHtoDAsync(d_b, h_b, N * sizeof(double), stream));
 }
 
-void MatrixAddCallback::memcpyDtoH(const CUstream &stream)
+void MatrixAddKernel::memcpyDtoH(const CUstream &stream)
 {
     checkCudaErrors(cuMemcpyDtoHAsync(h_c, d_c, N * sizeof(double), stream));
 }
 
-void MatrixAddCallback::memFree()
+void MatrixAddKernel::memFree()
 {
     for (int i = 0; i < N; ++i)
     {

@@ -5,7 +5,8 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-#include "Kernel.h"
+#include "KernelControlBlock.h"
+#include "KernelAttributes.h"
 #include "errchk.h"
 
 class Scheduler

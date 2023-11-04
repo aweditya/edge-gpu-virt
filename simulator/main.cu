@@ -5,8 +5,8 @@
 #include <cuda_runtime.h>
 #include <string>
 #include <vector>
-#include "KernelLauncher.h"
-#include "MatrixAddCallback.h"
+#include "KernelWrapper.h"
+#include "MatrixAddKernel.h"
 
 CUdevice device;
 CUcontext context;
@@ -63,7 +63,7 @@ int main(int argc, char **argv)
     CUstream stream1;
     checkCudaErrors(cuStreamCreate(&stream1, CU_STREAM_DEFAULT));
 
-    MatrixAddCallback matrixAddCallback1;
+    MatrixAddKernel matrixAddKernel1;
     kernel_attr_t attr1 = {
         .gridDimX = N,
         .gridDimY = 1,
@@ -77,9 +77,9 @@ int main(int argc, char **argv)
         .sharedMemBytes = 0,
         .stream = stream1};
 
-    KernelLauncher launcher1(&scheduler, context, moduleFile1, kernelName, &attr1, &matrixAddCallback1);
+    KernelWrapper wrapper1(&scheduler, context, moduleFile1, kernelName, &attr1, &matrixAddKernel1);
 
-    launcher1.launch();
+    wrapper1.launch();
     while (true)
     {
         if (scheduler.activeKernels.size() == 0)
@@ -103,7 +103,7 @@ int main(int argc, char **argv)
         }
     }
 
-    launcher1.finish();
+    wrapper1.finish();
 
     checkCudaErrors(cuStreamDestroy(stream1));
     finishCuda();
