@@ -52,10 +52,11 @@ void finishCuda()
 
 int main(int argc, char **argv)
 {
-    srand(0);
-
     const std::string moduleFile1 = "./ptx/matrixAdd1.ptx";
     const std::string kernelName = "matrixAdd";
+
+    srand(0);
+    Scheduler scheduler;
 
     initCuda();
 
@@ -63,7 +64,6 @@ int main(int argc, char **argv)
     checkCudaErrors(cuStreamCreate(&stream1, CU_STREAM_DEFAULT));
 
     MatrixAddCallback matrixAddCallback1;
-
     kernel_attr_t attr1 = {
         .gridDimX = N,
         .gridDimY = 1,
@@ -77,36 +77,34 @@ int main(int argc, char **argv)
         .sharedMemBytes = 0,
         .stream = stream1};
 
-    KernelLauncher launcher1(rand(), &context, moduleFile1, kernelName, &attr1, &matrixAddCallback1);
+    KernelLauncher launcher1(&scheduler, rand(), context, moduleFile1, kernelName, &attr1, &matrixAddCallback1);
 
     launcher1.launch();
-    pthread_mutex_lock(&(launcher1.kcb->kernel_lock));
-    while (launcher1.kcb->state == INIT)
-    {
-        pthread_cond_wait(&(launcher1.kcb->kernel_signal), &(launcher1.kcb->kernel_lock));
-    }
-    launcher1.kcb->state = LAUNCH;
-    pthread_mutex_unlock(&(launcher1.kcb->kernel_lock));
-
     while (true)
     {
-        launcher1.kcb->slicesToLaunch = 2;
-        launcher1.launchKernel();
-
-        if (launcher1.kcb->totalSlices == 0)
+        if (scheduler.activeKernels.size() == 0)
         {
-            pthread_mutex_lock(&(launcher1.kcb->kernel_lock));
-            launcher1.kcb->state = MEMCPYDTOH;
-            pthread_cond_signal(&(launcher1.kcb->kernel_signal));
-            pthread_mutex_unlock(&(launcher1.kcb->kernel_lock));
-            break;
+            continue;
+        }
+        else
+        {        
+            kernel_control_block_t *kcb = launcher1.getKernelControlBlock();
+            kcb->slicesToLaunch = 2;
+            scheduler.launchKernel(&launcher1);
+
+            if (kcb->totalSlices == 0)
+            {
+                pthread_mutex_lock(&(kcb->kernel_lock));
+                kcb->state = MEMCPYDTOH;
+                pthread_cond_signal(&(kcb->kernel_signal));
+                pthread_mutex_unlock(&(kcb->kernel_lock));
+
+                break;
+            }
         }
     }
 
     launcher1.finish();
-
-    pthread_mutex_destroy(&(launcher1.kcb->kernel_lock));
-    pthread_cond_destroy(&(launcher1.kcb->kernel_signal));
 
     checkCudaErrors(cuStreamDestroy(stream1));
     finishCuda();

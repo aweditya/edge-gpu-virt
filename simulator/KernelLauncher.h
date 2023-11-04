@@ -6,11 +6,14 @@
 #include <cuda_runtime.h>
 #include <pthread.h>
 
+#include "Scheduler.h"
 #include "KernelCallback.h"
 #include "errchk.h"
 
 typedef struct kernel_attr
 {
+    CUfunction function;
+
     unsigned int gridDimX;
     unsigned int gridDimY;
     unsigned int gridDimZ;
@@ -29,6 +32,7 @@ typedef struct kernel_attr
 
     unsigned int sharedMemBytes;
     CUstream stream;
+    void **kernelParams;
 } kernel_attr_t;
 
 enum kstate
@@ -66,19 +70,21 @@ void kernel_control_block_destroy(kernel_control_block *kcb)
 class KernelLauncher
 {
 public:
-    KernelLauncher(int id,
-                   CUcontext *context,
+    KernelLauncher(Scheduler *scheduler,
+                   int id,
+                   CUcontext &context,
                    const std::string &moduleFile,
                    const std::string &kernelName,
                    kernel_attr_t *attr,
-                   KernelCallback *kernelCallback) : id(id),
+                   KernelCallback *kernelCallback) : scheduler(scheduler),
+                                                     id(id),
                                                      context(context),
                                                      moduleFile(moduleFile),
                                                      kernelName(kernelName),
                                                      attr(attr)
     {
         callback = kernelCallback;
-        kernelParams = callback->args;
+        attr->kernelParams = callback->args;
         callback->setLauncherID(id);
 
         callback->args[0] = &(attr->blockOffsetX);
@@ -101,69 +107,38 @@ public:
         kernel_control_block_destroy(kcb);
     }
 
-    void launchKernel()
-    {
-        for (int i = 0; i < min(kcb->slicesToLaunch, kcb->totalSlices); ++i)
-        {
-            printf("[%d] slices left = %d\n", id, kcb->totalSlices);
-            checkCudaErrors(cuLaunchKernel(function,
-                                           attr->sGridDimX,
-                                           attr->sGridDimY,
-                                           attr->sGridDimZ,
-                                           attr->blockDimX,
-                                           attr->blockDimY,
-                                           attr->blockDimZ,
-                                           attr->sharedMemBytes,
-                                           attr->stream,
-                                           kernelParams,
-                                           nullptr));
-
-            attr->blockOffsetX += attr->sGridDimX;
-            while (attr->blockOffsetX >= attr->gridDimX)
-            {
-                attr->blockOffsetX -= attr->gridDimX;
-                attr->blockOffsetY += attr->sGridDimY;
-            }
-
-            while (attr->blockOffsetY >= attr->gridDimY)
-            {
-                attr->blockOffsetY -= attr->gridDimY;
-                attr->blockOffsetZ += attr->sGridDimZ;
-            }
-        }
-
-        kcb->totalSlices -= kcb->slicesToLaunch;
-    }
-
-    kernel_control_block_t *kcb;
+    int getId() { return id; }
+    kernel_attr_t *getKernelAttributes() { return attr; }
+    kernel_control_block_t *getKernelControlBlock() { return kcb; }
 
 private:
     int id;
-    CUcontext *context;
+    CUcontext context;
     pthread_t thread;
     std::string moduleFile;
     std::string kernelName;
     CUmodule module;
-    CUfunction function;
 
     kernel_attr_t *attr;
+    kernel_control_block_t *kcb;
 
-    void **kernelParams;
     KernelCallback *callback;
+    Scheduler *scheduler;
 
     void *threadFunction()
     {
-        checkCudaErrors(cuCtxSetCurrent(*context));
+        checkCudaErrors(cuCtxSetCurrent(context));
         checkCudaErrors(cuModuleLoad(&module, moduleFile.c_str()));
-        checkCudaErrors(cuModuleGetFunction(&function, module, kernelName.c_str()));
+        checkCudaErrors(cuModuleGetFunction(&(attr->function), module, kernelName.c_str()));
 
         callback->memAlloc();
         callback->memcpyHtoD(attr->stream);
 
         pthread_mutex_lock(&(kcb->kernel_lock));
         kcb->state = MEMCPYHTOD;
-        pthread_cond_signal(&(kcb->kernel_signal));
         pthread_mutex_unlock(&(kcb->kernel_lock));
+
+        scheduler->scheduleKernel(this);
 
         pthread_mutex_lock(&kcb->kernel_lock);
         while (kcb->state != MEMCPYDTOH)
