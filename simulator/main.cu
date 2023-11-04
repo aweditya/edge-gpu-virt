@@ -71,7 +71,7 @@ int main(int argc, char **argv)
         .blockDimX = 1,
         .blockDimY = 1,
         .blockDimZ = 1,
-        .sGridDimX = N / 2,
+        .sGridDimX = N / 16,
         .sGridDimY = 1,
         .sGridDimZ = 1,
         .sharedMemBytes = 0,

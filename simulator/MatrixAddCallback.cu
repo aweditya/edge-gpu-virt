@@ -23,7 +23,7 @@ void MatrixAddCallback::memAlloc()
 
     for (int i = 0; i < N; ++i)
     {
-        printf("[%d] %.3f, %.3f\n", launcherID, h_a[i], h_b[i]);
+        printf("[thread id: %ld] %.3f, %.3f\n", pthread_self(), h_a[i], h_b[i]);
     }
 
     args[3] = &d_a;
@@ -46,7 +46,7 @@ void MatrixAddCallback::memFree()
 {
     for (int i = 0; i < N; ++i)
     {
-        printf("[%d] %.3f, %.3f, %.3f\n", launcherID, h_a[i], h_b[i], h_c[i]);
+        printf("[thread id: %ld] %.3f, %.3f, %.3f\n", pthread_self(), h_a[i], h_b[i], h_c[i]);
     }
 
     checkCudaErrors(cuMemFree(d_a));

@@ -2,6 +2,7 @@
 
 void Scheduler::scheduleKernel(kernel_attr_t *kernel)
 {
+    kernel->id = rand();
     kernel->kcb.state = LAUNCH;
     activeKernels.push_back(kernel);
 }
@@ -10,7 +11,7 @@ void Scheduler::launchKernel(kernel_attr_t *kernel)
 {
     for (int i = 0; i < min(kernel->kcb.slicesToLaunch, kernel->kcb.totalSlices); ++i)
     {
-        printf("slices left = %d\n", kernel->kcb.totalSlices);
+        printf("[kernel id: %d] slices left = %d\n", kernel->id, kernel->kcb.totalSlices);
         checkCudaErrors(cuLaunchKernel(kernel->function,
                                        kernel->sGridDimX,
                                        kernel->sGridDimY,

@@ -3,6 +3,7 @@
 
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include <pthread.h>
 
 #include "matrixAdd.h"
 #include "KernelCallback.h"

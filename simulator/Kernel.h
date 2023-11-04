@@ -8,6 +8,7 @@
 
 typedef struct kernel_attr
 {
+    unsigned int id;
     CUfunction function;
 
     unsigned int gridDimX;

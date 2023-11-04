@@ -17,13 +17,7 @@ public:
     virtual void memcpyDtoH(const CUstream &stream) = 0;
     virtual void memFree() = 0;
 
-    int getLauncherID() { return launcherID; }
-    void setLauncherID(int id) { launcherID = id; }
-
     void *args[8];
-
-protected:
-    int launcherID;
 };
 
 #endif
