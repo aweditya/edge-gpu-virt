@@ -93,11 +93,7 @@ int main(int argc, char **argv)
 
             if (attr1.kcb.totalSlices == 0)
             {
-                pthread_mutex_lock(&(attr1.kcb.kernel_lock));
-                attr1.kcb.state = MEMCPYDTOH;
-                pthread_cond_signal(&(attr1.kcb.kernel_signal));
-                pthread_mutex_unlock(&(attr1.kcb.kernel_lock));
-
+                set_state(&(attr1.kcb), MEMCPYDTOH, true);
                 break;
             }
         }
