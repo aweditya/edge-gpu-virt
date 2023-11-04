@@ -33,15 +33,17 @@ typedef struct kernel_attr
 
 enum kstate
 {
-    READY = 0,
-    RUNNING = 1
+    INIT = 0,
+    MEMCPYHTOD = 1,
+    LAUNCH = 2,
+    MEMCPYDTOH = 3
 };
 
 typedef struct kernel_control_block
 {
     pthread_mutex_t kernel_lock;
     pthread_cond_t kernel_signal;
-    kstate state = READY;
+    kstate state = INIT;
     unsigned int slicesToLaunch = 1;
     unsigned int totalSlices;
 } kernel_control_block_t;
@@ -85,53 +87,6 @@ public:
         pthread_join(thread, NULL);
     }
 
-    kernel_control_block_t *kcb;
-
-private:
-    int id;
-    CUcontext *context;
-    pthread_t thread;
-    std::string moduleFile;
-    std::string kernelName;
-    CUmodule module;
-    CUfunction function;
-
-    kernel_attr_t *attr;
-
-    void **kernelParams;
-    KernelCallback *callback;
-
-    void *threadFunction()
-    {
-        checkCudaErrors(cuCtxSetCurrent(*context));
-        checkCudaErrors(cuModuleLoad(&module, moduleFile.c_str()));
-        checkCudaErrors(cuModuleGetFunction(&function, module, kernelName.c_str()));
-        callback->memAlloc();
-        callback->memcpyHtoD(attr->stream);
-
-        while (kcb->totalSlices)
-        {
-            pthread_mutex_lock(&kcb->kernel_lock);
-            while (kcb->state == READY)
-            {
-                pthread_cond_wait(&kcb->kernel_signal, &kcb->kernel_lock);
-            }
-            launchKernel();
-            pthread_mutex_unlock(&kcb->kernel_lock);
-        }
-
-        callback->memcpyDtoH(attr->stream);
-        callback->memFree();
-
-        return NULL;
-    }
-
-    static void *threadFunction(void *args)
-    {
-        KernelLauncher *kernelLauncher = static_cast<KernelLauncher *>(args);
-        return kernelLauncher->threadFunction();
-    }
-
     void launchKernel()
     {
         for (int i = 0; i < min(kcb->slicesToLaunch, kcb->totalSlices); ++i)
@@ -164,7 +119,55 @@ private:
         }
 
         kcb->totalSlices -= kcb->slicesToLaunch;
-        kcb->state = READY;
+    }
+
+    kernel_control_block_t *kcb;
+
+private:
+    int id;
+    CUcontext *context;
+    pthread_t thread;
+    std::string moduleFile;
+    std::string kernelName;
+    CUmodule module;
+    CUfunction function;
+
+    kernel_attr_t *attr;
+
+    void **kernelParams;
+    KernelCallback *callback;
+
+    void *threadFunction()
+    {
+        checkCudaErrors(cuCtxSetCurrent(*context));
+        checkCudaErrors(cuModuleLoad(&module, moduleFile.c_str()));
+        checkCudaErrors(cuModuleGetFunction(&function, module, kernelName.c_str()));
+
+        callback->memAlloc();
+        callback->memcpyHtoD(attr->stream);
+
+        pthread_mutex_lock(&(kcb->kernel_lock));
+        kcb->state = MEMCPYHTOD;
+        pthread_cond_signal(&(kcb->kernel_signal));
+        pthread_mutex_unlock(&(kcb->kernel_lock));
+
+        pthread_mutex_lock(&kcb->kernel_lock);
+        while (kcb->state != MEMCPYDTOH)
+        {
+            pthread_cond_wait(&kcb->kernel_signal, &kcb->kernel_lock);
+        }
+        pthread_mutex_unlock(&kcb->kernel_lock);
+
+        callback->memcpyDtoH(attr->stream);
+        callback->memFree();
+
+        return NULL;
+    }
+
+    static void *threadFunction(void *args)
+    {
+        KernelLauncher *kernelLauncher = static_cast<KernelLauncher *>(args);
+        return kernelLauncher->threadFunction();
     }
 };
 
