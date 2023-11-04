@@ -20,7 +20,7 @@ typedef struct kernel_control_block
     unsigned int totalSlices;
 } kernel_control_block_t;
 
-
+void set_state(kernel_control_block_t *kcb, kstate state);
 void kernel_control_block_init(kernel_control_block_t *kcb, unsigned int totalSlices);
 void kernel_control_block_destroy(kernel_control_block *kcb);
 

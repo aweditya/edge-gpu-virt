@@ -8,34 +8,34 @@
 
 #include "Scheduler.h"
 #include "KernelControlBlock.h"
-#include "KernelCallback.h"
+#include "Kernel.h"
 #include "errchk.h"
 
-class KernelLauncher
+class KernelWrapper
 {
 public:
-    KernelLauncher(Scheduler *scheduler,
-                   CUcontext &context,
-                   const std::string &moduleFile,
-                   const std::string &kernelName,
-                   kernel_attr_t *attr,
-                   KernelCallback *kernelCallback) : scheduler(scheduler),
-                                                     context(context),
-                                                     moduleFile(moduleFile),
-                                                     kernelName(kernelName),
-                                                     attr(attr)
+    KernelWrapper(Scheduler *scheduler,
+                  CUcontext &context,
+                  const std::string &moduleFile,
+                  const std::string &kernelName,
+                  kernel_attr_t *attr,
+                  Kernel *kernel) : scheduler(scheduler),
+                                    context(context),
+                                    moduleFile(moduleFile),
+                                    kernelName(kernelName),
+                                    attr(attr),
+                                    kernel(kernel)
     {
-        callback = kernelCallback;
-        attr->kernelParams = callback->args;
+        attr->kernelParams = kernel->args;
 
-        callback->args[0] = &(attr->blockOffsetX);
-        callback->args[1] = &(attr->blockOffsetY);
-        callback->args[2] = &(attr->blockOffsetZ);
+        kernel->args[0] = &(attr->blockOffsetX);
+        kernel->args[1] = &(attr->blockOffsetY);
+        kernel->args[2] = &(attr->blockOffsetZ);
 
         kernel_control_block_init(&(attr->kcb), (attr->gridDimX * attr->gridDimY * attr->gridDimZ) / (attr->sGridDimX * attr->sGridDimY * attr->sGridDimZ));
     }
 
-    ~KernelLauncher() {}
+    ~KernelWrapper() {}
 
     void launch()
     {
@@ -60,7 +60,7 @@ private:
 
     kernel_attr_t *attr;
 
-    KernelCallback *callback;
+    Kernel *kernel;
     Scheduler *scheduler;
 
     void *threadFunction()
@@ -69,12 +69,10 @@ private:
         checkCudaErrors(cuModuleLoad(&module, moduleFile.c_str()));
         checkCudaErrors(cuModuleGetFunction(&(attr->function), module, kernelName.c_str()));
 
-        callback->memAlloc();
-        callback->memcpyHtoD(attr->stream);
+        kernel->memAlloc();
+        kernel->memcpyHtoD(attr->stream);
 
-        pthread_mutex_lock(&(attr->kcb.kernel_lock));
-        attr->kcb.state = MEMCPYHTOD;
-        pthread_mutex_unlock(&(attr->kcb.kernel_lock));
+        set_state(&(attr->kcb), MEMCPYHTOD);
 
         scheduler->scheduleKernel(this->attr);
 
@@ -85,16 +83,16 @@ private:
         }
         pthread_mutex_unlock(&(attr->kcb.kernel_lock));
 
-        callback->memcpyDtoH(attr->stream);
-        callback->memFree();
+        kernel->memcpyDtoH(attr->stream);
+        kernel->memFree();
 
         return NULL;
     }
 
     static void *threadFunction(void *args)
     {
-        KernelLauncher *kernelLauncher = static_cast<KernelLauncher *>(args);
-        return kernelLauncher->threadFunction();
+        KernelWrapper *kernelWrapper = static_cast<KernelWrapper *>(args);
+        return kernelWrapper->threadFunction();
     }
 };
 

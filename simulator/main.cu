@@ -5,8 +5,8 @@
 #include <cuda_runtime.h>
 #include <string>
 #include <vector>
-#include "KernelLauncher.h"
-#include "MatrixAddCallback.h"
+#include "KernelWrapper.h"
+#include "MatrixAddKernel.h"
 
 CUdevice device;
 CUcontext context;
@@ -65,7 +65,11 @@ int main(int argc, char **argv)
     checkCudaErrors(cuStreamCreate(&stream1, CU_STREAM_DEFAULT));
     checkCudaErrors(cuStreamCreate(&stream2, CU_STREAM_DEFAULT));
 
+<<<<<<< HEAD
     MatrixAddCallback matrixAddCallback1, matrixAddCallback2;
+=======
+    MatrixAddKernel matrixAddKernel1;
+>>>>>>> main
     kernel_attr_t attr1 = {
         .gridDimX = N,
         .gridDimY = 1,
@@ -79,6 +83,7 @@ int main(int argc, char **argv)
         .sharedMemBytes = 0,
         .stream = stream1};
 
+<<<<<<< HEAD
     kernel_attr_t attr2 = {
         .gridDimX = N,
         .gridDimY = 1,
@@ -99,6 +104,11 @@ int main(int argc, char **argv)
     launcher2.launch();
 
     int time = 0;
+=======
+    KernelWrapper wrapper1(&scheduler, context, moduleFile1, kernelName, &attr1, &matrixAddKernel1);
+
+    wrapper1.launch();
+>>>>>>> main
     while (true)
     {
         if (scheduler.activeKernels.size() == 0)
@@ -146,8 +156,12 @@ int main(int argc, char **argv)
         }
     }
 
+<<<<<<< HEAD
     launcher1.finish();
     launcher2.finish();
+=======
+    wrapper1.finish();
+>>>>>>> main
 
     checkCudaErrors(cuStreamDestroy(stream1));
     checkCudaErrors(cuStreamDestroy(stream2));

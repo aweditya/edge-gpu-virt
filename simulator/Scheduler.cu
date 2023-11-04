@@ -3,7 +3,7 @@
 void Scheduler::scheduleKernel(kernel_attr_t *kernel)
 {
     kernel->id = rand();
-    kernel->kcb.state = LAUNCH;
+    set_state(&(kernel->kcb), LAUNCH);
     activeKernels.push_back(kernel);
 }
 
