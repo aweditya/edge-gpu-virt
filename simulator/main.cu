@@ -116,10 +116,7 @@ int main(int argc, char **argv)
 
                 if (scheduler.activeKernels[0]->kcb.totalSlices == 0)
                 {
-                    pthread_mutex_lock(&(scheduler.activeKernels[0]->kcb.kernel_lock));
-                    scheduler.activeKernels[0]->kcb.state = MEMCPYDTOH;
-                    pthread_cond_signal(&(scheduler.activeKernels[0]->kcb.kernel_signal));
-                    pthread_mutex_unlock(&(scheduler.activeKernels[0]->kcb.kernel_lock));
+                    set_state(&(scheduler.activeKernels[0]->kcb), MEMCPYDTOH, true);
                     scheduler.activeKernels.erase(scheduler.activeKernels.begin());
                 }
             }
@@ -130,17 +127,9 @@ int main(int argc, char **argv)
 
                 if (scheduler.activeKernels[time % 2]->kcb.totalSlices == 0)
                 {
-                    pthread_mutex_lock(&(scheduler.activeKernels[time % 2]->kcb.kernel_lock));
-                    scheduler.activeKernels[time % 2]->kcb.state = MEMCPYDTOH;
-                    pthread_cond_signal(&(scheduler.activeKernels[time % 2]->kcb.kernel_signal));
-                    pthread_mutex_unlock(&(scheduler.activeKernels[time % 2]->kcb.kernel_lock));
+                    set_state(&(scheduler.activeKernels[time % 2]->kcb), MEMCPYDTOH, true);
                     scheduler.activeKernels.erase(scheduler.activeKernels.begin() + time % 2);
                 }
-            }
-
-            if (scheduler.activeKernels.size() == 0)
-            {
-                break;
             }
 
             time++;

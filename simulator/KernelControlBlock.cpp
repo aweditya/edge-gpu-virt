@@ -1,9 +1,13 @@
 #include "KernelControlBlock.h"
 
-void set_state(kernel_control_block_t *kcb, kstate state)
+void set_state(kernel_control_block_t *kcb, kstate state, bool signal)
 {
     pthread_mutex_lock(&(kcb->kernel_lock));
     kcb->state = state;
+    if (signal)
+    {
+        pthread_cond_signal(&(kcb->kernel_signal));
+    }
     pthread_mutex_unlock(&(kcb->kernel_lock));
 }
 
