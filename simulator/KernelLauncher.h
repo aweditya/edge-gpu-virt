@@ -44,6 +44,7 @@ public:
 
     void finish()
     {
+        printf("[thread id: %ld] exiting...\n", pthread_self());
         pthread_join(thread, NULL);
         kernel_control_block_destroy(&(attr->kcb));
     }
