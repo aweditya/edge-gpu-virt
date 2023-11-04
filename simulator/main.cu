@@ -77,11 +77,7 @@ int main(int argc, char **argv)
         .sharedMemBytes = 0,
         .stream = stream1};
 
-    kernel_control_block_t kcb1;
-    pthread_mutex_init(&(kcb1.kernel_lock), NULL);
-    pthread_cond_init(&(kcb1.kernel_signal), NULL);
-
-    KernelLauncher launcher1(rand(), &context, moduleFile1, kernelName, &attr1, &kcb1, &matrixAddCallback1);
+    KernelLauncher launcher1(rand(), &context, moduleFile1, kernelName, &attr1, &matrixAddCallback1);
 
     launcher1.launch();
     pthread_mutex_lock(&(launcher1.kcb->kernel_lock));

@@ -43,10 +43,25 @@ typedef struct kernel_control_block
 {
     pthread_mutex_t kernel_lock;
     pthread_cond_t kernel_signal;
-    kstate state = INIT;
-    unsigned int slicesToLaunch = 1;
+    kstate state;
+    unsigned int slicesToLaunch;
     unsigned int totalSlices;
 } kernel_control_block_t;
+
+void kernel_control_block_init(kernel_control_block_t *kcb, unsigned int totalSlices)
+{
+    pthread_mutex_init(&(kcb->kernel_lock), NULL);
+    pthread_cond_init(&(kcb->kernel_signal), NULL);
+    kcb->state = INIT;
+    kcb->slicesToLaunch = 1;
+    kcb->totalSlices = totalSlices;
+}
+
+void kernel_control_block_destroy(kernel_control_block *kcb)
+{
+    pthread_mutex_destroy(&(kcb->kernel_lock));
+    pthread_cond_destroy(&(kcb->kernel_signal));
+}
 
 class KernelLauncher
 {
@@ -56,13 +71,11 @@ public:
                    const std::string &moduleFile,
                    const std::string &kernelName,
                    kernel_attr_t *attr,
-                   kernel_control_block *kcb,
                    KernelCallback *kernelCallback) : id(id),
                                                      context(context),
                                                      moduleFile(moduleFile),
                                                      kernelName(kernelName),
-                                                     attr(attr),
-                                                     kcb(kcb)
+                                                     attr(attr)
     {
         callback = kernelCallback;
         kernelParams = callback->args;
@@ -72,7 +85,7 @@ public:
         callback->args[1] = &(attr->blockOffsetY);
         callback->args[2] = &(attr->blockOffsetZ);
 
-        kcb->totalSlices = (attr->gridDimX * attr->gridDimY * attr->gridDimZ) / (attr->sGridDimX * attr->sGridDimY * attr->sGridDimZ);
+        kernel_control_block_init(kcb, (attr->gridDimX * attr->gridDimY * attr->gridDimZ) / (attr->sGridDimX * attr->sGridDimY * attr->sGridDimZ));
     }
 
     ~KernelLauncher() {}
@@ -85,6 +98,7 @@ public:
     void finish()
     {
         pthread_join(thread, NULL);
+        kernel_control_block_destroy(kcb);
     }
 
     void launchKernel()
