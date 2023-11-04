@@ -36,7 +36,7 @@
 	mov.u32 	%r5, %ntid.x;
 	mov.u32 	%r6, %tid.x;
 	mad.lo.s32 	%r1, %r4, %r5, %r6;
-	setp.gt.s32 	%p1, %r1, 16383;
+	setp.gt.s32 	%p1, %r1, 15;
 	@%p1 bra 	$L__BB0_2;
 
 	cvta.to.global.u64 	%rd4, %rd1;

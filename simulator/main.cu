@@ -65,13 +65,13 @@ int main(int argc, char **argv)
     MatrixAddCallback matrixAddCallback1;
 
     kernel_attr_t attr1 = {
-        .gridDimX = N / 128,
+        .gridDimX = N,
         .gridDimY = 1,
         .gridDimZ = 1,
-        .blockDimX = 128,
+        .blockDimX = 1,
         .blockDimY = 1,
         .blockDimZ = 1,
-        .sGridDimX = N / (128 * 16),
+        .sGridDimX = N / 2,
         .sGridDimY = 1,
         .sGridDimZ = 1,
         .sharedMemBytes = 0,
