@@ -7,77 +7,19 @@
 #include <pthread.h>
 
 #include "Scheduler.h"
+#include "KernelControlBlock.h"
 #include "KernelCallback.h"
 #include "errchk.h"
-
-typedef struct kernel_attr
-{
-    CUfunction function;
-
-    unsigned int gridDimX;
-    unsigned int gridDimY;
-    unsigned int gridDimZ;
-
-    unsigned int blockDimX;
-    unsigned int blockDimY;
-    unsigned int blockDimZ;
-
-    unsigned int sGridDimX;
-    unsigned int sGridDimY;
-    unsigned int sGridDimZ;
-
-    unsigned int blockOffsetX = 0;
-    unsigned int blockOffsetY = 0;
-    unsigned int blockOffsetZ = 0;
-
-    unsigned int sharedMemBytes;
-    CUstream stream;
-    void **kernelParams;
-} kernel_attr_t;
-
-enum kstate
-{
-    INIT = 0,
-    MEMCPYHTOD = 1,
-    LAUNCH = 2,
-    MEMCPYDTOH = 3
-};
-
-typedef struct kernel_control_block
-{
-    pthread_mutex_t kernel_lock;
-    pthread_cond_t kernel_signal;
-    kstate state;
-    unsigned int slicesToLaunch;
-    unsigned int totalSlices;
-} kernel_control_block_t;
-
-void kernel_control_block_init(kernel_control_block_t *kcb, unsigned int totalSlices)
-{
-    pthread_mutex_init(&(kcb->kernel_lock), NULL);
-    pthread_cond_init(&(kcb->kernel_signal), NULL);
-    kcb->state = INIT;
-    kcb->slicesToLaunch = 1;
-    kcb->totalSlices = totalSlices;
-}
-
-void kernel_control_block_destroy(kernel_control_block *kcb)
-{
-    pthread_mutex_destroy(&(kcb->kernel_lock));
-    pthread_cond_destroy(&(kcb->kernel_signal));
-}
 
 class KernelLauncher
 {
 public:
     KernelLauncher(Scheduler *scheduler,
-                   int id,
                    CUcontext &context,
                    const std::string &moduleFile,
                    const std::string &kernelName,
                    kernel_attr_t *attr,
                    KernelCallback *kernelCallback) : scheduler(scheduler),
-                                                     id(id),
                                                      context(context),
                                                      moduleFile(moduleFile),
                                                      kernelName(kernelName),
@@ -85,13 +27,12 @@ public:
     {
         callback = kernelCallback;
         attr->kernelParams = callback->args;
-        callback->setLauncherID(id);
 
         callback->args[0] = &(attr->blockOffsetX);
         callback->args[1] = &(attr->blockOffsetY);
         callback->args[2] = &(attr->blockOffsetZ);
 
-        kernel_control_block_init(kcb, (attr->gridDimX * attr->gridDimY * attr->gridDimZ) / (attr->sGridDimX * attr->sGridDimY * attr->sGridDimZ));
+        kernel_control_block_init(&(attr->kcb), (attr->gridDimX * attr->gridDimY * attr->gridDimZ) / (attr->sGridDimX * attr->sGridDimY * attr->sGridDimZ));
     }
 
     ~KernelLauncher() {}
@@ -104,15 +45,12 @@ public:
     void finish()
     {
         pthread_join(thread, NULL);
-        kernel_control_block_destroy(kcb);
+        kernel_control_block_destroy(&(attr->kcb));
     }
 
-    int getId() { return id; }
     kernel_attr_t *getKernelAttributes() { return attr; }
-    kernel_control_block_t *getKernelControlBlock() { return kcb; }
 
 private:
-    int id;
     CUcontext context;
     pthread_t thread;
     std::string moduleFile;
@@ -120,7 +58,6 @@ private:
     CUmodule module;
 
     kernel_attr_t *attr;
-    kernel_control_block_t *kcb;
 
     KernelCallback *callback;
     Scheduler *scheduler;
@@ -134,18 +71,18 @@ private:
         callback->memAlloc();
         callback->memcpyHtoD(attr->stream);
 
-        pthread_mutex_lock(&(kcb->kernel_lock));
-        kcb->state = MEMCPYHTOD;
-        pthread_mutex_unlock(&(kcb->kernel_lock));
+        pthread_mutex_lock(&(attr->kcb.kernel_lock));
+        attr->kcb.state = MEMCPYHTOD;
+        pthread_mutex_unlock(&(attr->kcb.kernel_lock));
 
-        scheduler->scheduleKernel(this);
+        scheduler->scheduleKernel(this->attr);
 
-        pthread_mutex_lock(&kcb->kernel_lock);
-        while (kcb->state != MEMCPYDTOH)
+        pthread_mutex_lock(&(attr->kcb.kernel_lock));
+        while (attr->kcb.state != MEMCPYDTOH)
         {
-            pthread_cond_wait(&kcb->kernel_signal, &kcb->kernel_lock);
+            pthread_cond_wait(&(attr->kcb.kernel_signal), &(attr->kcb.kernel_lock));
         }
-        pthread_mutex_unlock(&kcb->kernel_lock);
+        pthread_mutex_unlock(&(attr->kcb.kernel_lock));
 
         callback->memcpyDtoH(attr->stream);
         callback->memFree();

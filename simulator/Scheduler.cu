@@ -1,45 +1,41 @@
 #include "Scheduler.h"
 
-void Scheduler::scheduleKernel(KernelLauncher *kernel)
+void Scheduler::scheduleKernel(kernel_attr_t *kernel)
 {
-    kernel_control_block_t *kcb = kernel->getKernelControlBlock();
-    kcb->state = LAUNCH;
+    kernel->kcb.state = LAUNCH;
     activeKernels.push_back(kernel);
 }
 
-void Scheduler::launchKernel(KernelLauncher *kernel)
+void Scheduler::launchKernel(kernel_attr_t *kernel)
 {
-    int id = kernel->getId();
-    kernel_attr_t *attr = kernel->getKernelAttributes();
-    kernel_control_block_t *kcb = kernel->getKernelControlBlock();
-    for (int i = 0; i < min(kcb->slicesToLaunch, kcb->totalSlices); ++i)
+    for (int i = 0; i < min(kernel->kcb.slicesToLaunch, kernel->kcb.totalSlices); ++i)
     {
-        printf("[%d] slices left = %d\n", id, kcb->totalSlices);
-        checkCudaErrors(cuLaunchKernel(attr->function,
-                                       attr->sGridDimX,
-                                       attr->sGridDimY,
-                                       attr->sGridDimZ,
-                                       attr->blockDimX,
-                                       attr->blockDimY,
-                                       attr->blockDimZ,
-                                       attr->sharedMemBytes,
-                                       attr->stream,
-                                       attr->kernelParams,
+        printf("slices left = %d\n", kernel->kcb.totalSlices);
+        checkCudaErrors(cuLaunchKernel(kernel->function,
+                                       kernel->sGridDimX,
+                                       kernel->sGridDimY,
+                                       kernel->sGridDimZ,
+                                       kernel->blockDimX,
+                                       kernel->blockDimY,
+                                       kernel->blockDimZ,
+                                       kernel->sharedMemBytes,
+                                       kernel->stream,
+                                       kernel->kernelParams,
                                        nullptr));
 
-        attr->blockOffsetX += attr->sGridDimX;
-        while (attr->blockOffsetX >= attr->gridDimX)
+        kernel->blockOffsetX += kernel->sGridDimX;
+        while (kernel->blockOffsetX >= kernel->gridDimX)
         {
-            attr->blockOffsetX -= attr->gridDimX;
-            attr->blockOffsetY += attr->sGridDimY;
+            kernel->blockOffsetX -= kernel->gridDimX;
+            kernel->blockOffsetY += kernel->sGridDimY;
         }
 
-        while (attr->blockOffsetY >= attr->gridDimY)
+        while (kernel->blockOffsetY >= kernel->gridDimY)
         {
-            attr->blockOffsetY -= attr->gridDimY;
-            attr->blockOffsetZ += attr->sGridDimZ;
+            kernel->blockOffsetY -= kernel->gridDimY;
+            kernel->blockOffsetZ += kernel->sGridDimZ;
         }
     }
 
-    kcb->totalSlices -= kcb->slicesToLaunch;
+    kernel->kcb.totalSlices -= kernel->kcb.slicesToLaunch;
 }

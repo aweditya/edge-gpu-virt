@@ -4,7 +4,8 @@
 #include <vector>
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include "KernelLauncher.h"
+
+#include "Kernel.h"
 #include "errchk.h"
 
 class Scheduler
@@ -13,10 +14,10 @@ public:
     Scheduler() {}
     ~Scheduler() {}
 
-    void scheduleKernel(KernelLauncher *kernel);
-    void launchKernel(KernelLauncher *kernel);
+    void scheduleKernel(kernel_attr_t *kernel);
+    void launchKernel(kernel_attr_t *kernel);
 
-    std::vector<KernelLauncher *> activeKernels;
+    std::vector<kernel_attr_t *> activeKernels;
 };
 
 #endif

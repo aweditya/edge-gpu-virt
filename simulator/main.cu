@@ -77,7 +77,7 @@ int main(int argc, char **argv)
         .sharedMemBytes = 0,
         .stream = stream1};
 
-    KernelLauncher launcher1(&scheduler, rand(), context, moduleFile1, kernelName, &attr1, &matrixAddCallback1);
+    KernelLauncher launcher1(&scheduler, context, moduleFile1, kernelName, &attr1, &matrixAddCallback1);
 
     launcher1.launch();
     while (true)
@@ -88,16 +88,15 @@ int main(int argc, char **argv)
         }
         else
         {        
-            kernel_control_block_t *kcb = launcher1.getKernelControlBlock();
-            kcb->slicesToLaunch = 2;
-            scheduler.launchKernel(&launcher1);
+            attr1.kcb.slicesToLaunch = 2;
+            scheduler.launchKernel(&attr1);
 
-            if (kcb->totalSlices == 0)
+            if (attr1.kcb.totalSlices == 0)
             {
-                pthread_mutex_lock(&(kcb->kernel_lock));
-                kcb->state = MEMCPYDTOH;
-                pthread_cond_signal(&(kcb->kernel_signal));
-                pthread_mutex_unlock(&(kcb->kernel_lock));
+                pthread_mutex_lock(&(attr1.kcb.kernel_lock));
+                attr1.kcb.state = MEMCPYDTOH;
+                pthread_cond_signal(&(attr1.kcb.kernel_signal));
+                pthread_mutex_unlock(&(attr1.kcb.kernel_lock));
 
                 break;
             }
