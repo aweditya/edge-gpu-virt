@@ -4,7 +4,10 @@ void Scheduler::scheduleKernel(kernel_attr_t *kernel)
 {
     kernel->id = rand();
     set_state(&(kernel->kcb), LAUNCH);
+
+    pthread_mutex_lock(&mutex);
     activeKernels.push_back(kernel);
+    pthread_mutex_unlock(&mutex);
 }
 
 void Scheduler::launchKernel(kernel_attr_t *kernel)

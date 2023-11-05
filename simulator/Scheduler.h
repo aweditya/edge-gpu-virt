@@ -1,6 +1,7 @@
 #ifndef _SCHEDULER_H
 #define _SCHEDULER_H
 
+#include <unistd.h>
 #include <vector>
 #include <pthread.h>
 #include <cuda.h>
@@ -13,8 +14,8 @@
 class Scheduler
 {
 public:
-    Scheduler() {}
-    ~Scheduler() {}
+    Scheduler(bool *done) : done(done) { pthread_mutex_init(&mutex, NULL); }
+    ~Scheduler() { pthread_mutex_destroy(&mutex); }
 
     void scheduleKernel(kernel_attr_t *kernel);
     void launchKernel(kernel_attr_t *kernel);
@@ -30,12 +31,14 @@ public:
     }
 
 private:
+    bool *done;
     pthread_t schedulerThread;
+    pthread_mutex_t mutex;
     std::vector<kernel_attr_t *> activeKernels;
 
     void *threadFunction()
     {
-        while (true)
+        while (!(*done))
         {
             if (activeKernels.size() == 0)
             {
@@ -53,7 +56,9 @@ private:
                     if ((*it)->kcb.totalSlices == 0)
                     {
                         set_state(&((*it)->kcb), MEMCPYDTOH, true);
+                        pthread_mutex_lock(&mutex);
                         it = activeKernels.erase(it);
+                        pthread_mutex_unlock(&mutex);
                     }
                     else
                     {
@@ -62,12 +67,13 @@ private:
                 }
             }
         }
+        return nullptr;
     }
 
     static void *threadFunction(void *args)
     {
         Scheduler *scheduler = static_cast<Scheduler *>(args);
-        scheduler->threadFunction();
+        return scheduler->threadFunction();
     }
 };
 

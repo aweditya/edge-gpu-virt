@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <string>
@@ -52,14 +51,15 @@ void finishCuda()
 
 int main(int argc, char **argv)
 {
+    initCuda();
+    srand(0);
+
+    bool done = false;
+    Scheduler scheduler(&done);
+
     const std::string moduleFile1 = "./ptx/matrixAdd1.ptx";
     const std::string moduleFile2 = "./ptx/matrixAdd2.ptx";
     const std::string kernelName = "matrixAdd";
-
-    srand(0);
-    Scheduler scheduler;
-
-    initCuda();
 
     CUstream stream1, stream2;
     checkCudaErrors(cuStreamCreate(&stream1, CU_STREAM_DEFAULT));
@@ -92,52 +92,18 @@ int main(int argc, char **argv)
         .sharedMemBytes = 0,
         .stream = stream2};
 
-
-
-    int time = 0;
     KernelWrapper wrapper1(&scheduler, context, moduleFile1, kernelName, &attr1, &matrixAddKernel1);
     KernelWrapper wrapper2(&scheduler, context, moduleFile2, kernelName, &attr2, &matrixAddKernel2);
 
+    scheduler.run();
     wrapper1.launch();
     wrapper2.launch();
-    while (true)
-    {
-        if (scheduler.activeKernels.size() == 0)
-        {
-            continue;
-        }
-        else
-        {
-            printf("[thread id: %ld] number of kernels: %ld\n", pthread_self(), scheduler.activeKernels.size());
-            if (scheduler.activeKernels.size() == 1)
-            {
-                scheduler.activeKernels[0]->kcb.slicesToLaunch = 2;
-                scheduler.launchKernel(scheduler.activeKernels[0]);
-
-                if (scheduler.activeKernels[0]->kcb.totalSlices == 0)
-                {
-                    set_state(&(scheduler.activeKernels[0]->kcb), MEMCPYDTOH, true);
-                    scheduler.activeKernels.erase(scheduler.activeKernels.begin());
-                }
-            }
-            else
-            {
-                scheduler.activeKernels[time % 2]->kcb.slicesToLaunch = (time % 2 + 1) * 2;
-                scheduler.launchKernel(scheduler.activeKernels[time % 2]);
-
-                if (scheduler.activeKernels[time % 2]->kcb.totalSlices == 0)
-                {
-                    set_state(&(scheduler.activeKernels[time % 2]->kcb), MEMCPYDTOH, true);
-                    scheduler.activeKernels.erase(scheduler.activeKernels.begin() + time % 2);
-                }
-            }
-
-            time++;
-        }
-    }
 
     wrapper1.finish();
     wrapper2.finish();
+    
+    done = true;
+    scheduler.finish();
 
     checkCudaErrors(cuStreamDestroy(stream1));
     checkCudaErrors(cuStreamDestroy(stream2));

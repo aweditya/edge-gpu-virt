@@ -44,7 +44,6 @@ public:
 
     void finish()
     {
-        printf("[thread id: %ld kernel id: %d] exiting...\n", pthread_self(), attr->id);
         pthread_join(thread, NULL);
         kernel_control_block_destroy(&(attr->kcb));
     }
@@ -85,8 +84,9 @@ private:
 
         kernel->memcpyDtoH(attr->stream);
         kernel->memFree();
-
-        return NULL;
+        
+        printf("[thread id: %ld kernel id: %d] done with threadfunction...\n", pthread_self(), attr->id);
+        return nullptr;
     }
 
     static void *threadFunction(void *args)
