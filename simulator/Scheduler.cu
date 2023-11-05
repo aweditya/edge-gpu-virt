@@ -38,5 +38,5 @@ void Scheduler::launchKernel(kernel_attr_t *kernel)
         }
     }
 
-    kernel->kcb.totalSlices -= kernel->kcb.slicesToLaunch;
+    kernel->kcb.totalSlices = max(kernel->kcb.totalSlices - kernel->kcb.slicesToLaunch, 0);
 }
