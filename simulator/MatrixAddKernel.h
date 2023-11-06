@@ -1,5 +1,5 @@
-#ifndef _MATRIX_ADD_CALLBACK_H
-#define _MATRIX_ADD_CALLBACK_H
+#ifndef _MATRIX_ADD_KERNEL_H
+#define _MATRIX_ADD_KERNEL_H
 
 #include <cuda.h>
 #include <cuda_runtime.h>

@@ -1,5 +1,5 @@
-#ifndef _KERNEL_LAUNCHER_H
-#define _KERNEL_LAUNCHER_H
+#ifndef _KERNEL_WRAPPER_H
+#define _KERNEL_WRAPPER_H
 
 #include <string>
 #include <cuda.h>

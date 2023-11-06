@@ -1,11 +1,11 @@
 #include "clockBlock.h"
 
 // This is a kernel that does no real work but runs at least for a specified number of clocks
-__global__ void clock_block(clock_t *d_o, clock_t clock_count)
+extern "C" __global__ void clockBlock(int blockOffsetX, int blockOffsetY, int blockOffsetZ, long *d_o, long clock_count)
 {
     unsigned int start_clock = (unsigned int)clock();
 
-    clock_t clock_offset = 0;
+    long clock_offset = 0;
 
     while (clock_offset < clock_count)
     {
@@ -21,7 +21,7 @@ __global__ void clock_block(clock_t *d_o, clock_t clock_count)
         // Indeed, let m = 2^32 then
         // end - start = end + m - start (mod m).
 
-        clock_offset = (clock_t)(end_clock - start_clock);
+        clock_offset = (long)(end_clock - start_clock);
     }
 
     d_o[0] = clock_offset;
