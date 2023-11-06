@@ -48,23 +48,34 @@ private:
             else
             {
                 printf("[thread id: %ld] number of kernels: %ld\n", pthread_self(), activeKernels.size());
-                for (auto it = activeKernels.begin(); it != activeKernels.end();)
-                {
-                    (*it)->kcb.slicesToLaunch = 2;
-                    launchKernel(*it);
+                activeKernels[0]->kcb.slicesToLaunch = 2;
+                launchKernel(activeKernels[0]);
 
-                    if ((*it)->kcb.totalSlices == 0)
-                    {
-                        set_state(&((*it)->kcb), MEMCPYDTOH, true);
-                        pthread_mutex_lock(&mutex);
-                        it = activeKernels.erase(it);
-                        pthread_mutex_unlock(&mutex);
-                    }
-                    else
-                    {
-                        ++it;
-                    }
+                if (activeKernels[0]->kcb.totalSlices == 0)
+                {
+                    set_state(&(activeKernels[0]->kcb), MEMCPYDTOH, true);
+                    pthread_mutex_lock(&mutex);
+                    activeKernels.erase(activeKernels.begin());
+                    pthread_mutex_unlock(&mutex);
                 }
+
+                // for (auto it = activeKernels.begin(); it != activeKernels.end();)
+                // {
+                //     (*it)->kcb.slicesToLaunch = 2;
+                //     launchKernel(*it);
+
+                //     if ((*it)->kcb.totalSlices == 0)
+                //     {
+                //         set_state(&((*it)->kcb), MEMCPYDTOH, true);
+                //         pthread_mutex_lock(&mutex);
+                //         it = activeKernels.erase(it);
+                //         pthread_mutex_unlock(&mutex);
+                //     }
+                //     else
+                //     {
+                //         ++it;
+                //     }
+                // }
             }
         }
         return nullptr;
