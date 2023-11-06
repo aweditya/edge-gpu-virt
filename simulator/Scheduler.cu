@@ -39,7 +39,7 @@ void Scheduler::launchKernel(kernel_attr_t *kernel)
             kernel->blockOffsetY -= kernel->gridDimY;
             kernel->blockOffsetZ += kernel->sGridDimZ;
         }
-    }
 
-    kernel->kcb.totalSlices = max(kernel->kcb.totalSlices - kernel->kcb.slicesToLaunch, 0);
+        --kernel->kcb.totalSlices;
+    }
 }
