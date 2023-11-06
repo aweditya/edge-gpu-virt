@@ -6,6 +6,7 @@
 #include <vector>
 #include "KernelWrapper.h"
 #include "ClockBlockKernel.h"
+#include "FCFSScheduler.h"
 
 CUdevice device;
 int clockRate;
@@ -58,7 +59,7 @@ int main(int argc, char **argv)
     initCuda();
     srand(0);
 
-    Scheduler scheduler;
+    FCFSScheduler scheduler;
 
     const std::string moduleFile1 = "./ptx/clockBlock1.ptx";
     const std::string moduleFile2 = "./ptx/clockBlock2.ptx";

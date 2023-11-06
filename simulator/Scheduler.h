@@ -14,11 +14,43 @@
 class Scheduler
 {
 public:
-    Scheduler() : done(false) { pthread_mutex_init(&mutex, NULL); }
-    ~Scheduler() { pthread_mutex_destroy(&mutex); }
+    Scheduler() : done(false) {}
+    ~Scheduler() {}
 
-    void scheduleKernel(kernel_attr_t *kernel);
-    void launchKernel(kernel_attr_t *kernel);
+    virtual void scheduleKernel(kernel_attr_t *kernel) = 0;
+    void launchKernel(kernel_attr_t *kernel)
+    {
+        for (int i = 0; i < min(kernel->kcb.slicesToLaunch, kernel->kcb.totalSlices); ++i)
+        {
+            printf("[kernel id: %d] slices left = %d\n", kernel->id, kernel->kcb.totalSlices);
+            checkCudaErrors(cuLaunchKernel(kernel->function,
+                                           kernel->sGridDimX,
+                                           kernel->sGridDimY,
+                                           kernel->sGridDimZ,
+                                           kernel->blockDimX,
+                                           kernel->blockDimY,
+                                           kernel->blockDimZ,
+                                           kernel->sharedMemBytes,
+                                           kernel->stream,
+                                           kernel->kernelParams,
+                                           nullptr));
+
+            kernel->blockOffsetX += kernel->sGridDimX;
+            while (kernel->blockOffsetX >= kernel->gridDimX)
+            {
+                kernel->blockOffsetX -= kernel->gridDimX;
+                kernel->blockOffsetY += kernel->sGridDimY;
+            }
+
+            while (kernel->blockOffsetY >= kernel->gridDimY)
+            {
+                kernel->blockOffsetY -= kernel->gridDimY;
+                kernel->blockOffsetZ += kernel->sGridDimZ;
+            }
+
+            --kernel->kcb.totalSlices;
+        }
+    }
 
     void run()
     {
@@ -35,53 +67,17 @@ public:
         pthread_join(schedulerThread, NULL);
     }
 
-private:
+protected:
     bool done;
     pthread_t schedulerThread;
-    pthread_mutex_t mutex;
-    std::vector<kernel_attr_t *> activeKernels;
+
+    virtual void schedule() = 0;
 
     void *threadFunction()
     {
         while (!done)
         {
-            if (activeKernels.size() == 0)
-            {
-                usleep(1);
-                continue;
-            }
-            else
-            {
-                printf("[thread id: %ld] number of kernels: %ld\n", pthread_self(), activeKernels.size());
-                activeKernels[0]->kcb.slicesToLaunch = 2;
-                launchKernel(activeKernels[0]);
-
-                if (activeKernels[0]->kcb.totalSlices == 0)
-                {
-                    set_state(&(activeKernels[0]->kcb), MEMCPYDTOH, true);
-                    pthread_mutex_lock(&mutex);
-                    activeKernels.erase(activeKernels.begin());
-                    pthread_mutex_unlock(&mutex);
-                }
-
-                // pthread_mutex_lock(&mutex);
-                // for (auto it = activeKernels.begin(); it != activeKernels.end();)
-                // {
-                //     (*it)->kcb.slicesToLaunch = 2;
-                //     launchKernel(*it);
-
-                //     if ((*it)->kcb.totalSlices == 0)
-                //     {
-                //         set_state(&((*it)->kcb), MEMCPYDTOH, true);
-                //         it = activeKernels.erase(it);
-                //     }
-                //     else
-                //     {
-                //         ++it;
-                //     }
-                // }
-                // pthread_mutex_unlock(&mutex);
-            }
+            schedule();
         }
         return nullptr;
     }

@@ -4,9 +4,9 @@
 #include <cuda_runtime.h>
 #include <string>
 #include <vector>
-#include <chrono>
 #include "KernelWrapper.h"
 #include "MatrixAddKernel.h"
+#include "FCFSScheduler.h"
 
 CUdevice device;
 CUcontext context;
@@ -55,7 +55,7 @@ int main(int argc, char **argv)
     initCuda();
     srand(0);
 
-    Scheduler scheduler;
+    FCFSScheduler scheduler;
 
     const std::string moduleFile1 = "./ptx/matrixAdd1.ptx";
     const std::string moduleFile2 = "./ptx/matrixAdd2.ptx";
