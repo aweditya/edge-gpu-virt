@@ -12,7 +12,11 @@ void FCFSScheduler::scheduleKernel(kernel_attr_t *kernel)
 
 void FCFSScheduler::schedule()
 {
-    if (activeKernels.size() != 0)
+    if (activeKernels.size() == 0)
+    {
+        usleep(1);
+    }
+    else
     {
         printf("[thread id: %ld] number of kernels: %ld\n", pthread_self(), activeKernels.size());
         activeKernels.front()->kcb.slicesToLaunch = 2;
