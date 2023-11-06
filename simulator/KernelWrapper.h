@@ -1,5 +1,5 @@
-#ifndef _KERNEL_LAUNCHER_H
-#define _KERNEL_LAUNCHER_H
+#ifndef _KERNEL_WRAPPER_H
+#define _KERNEL_WRAPPER_H
 
 #include <string>
 #include <cuda.h>
@@ -84,8 +84,9 @@ private:
 
         kernel->memcpyDtoH(attr->stream);
         kernel->memFree();
-
-        return NULL;
+        
+        printf("[thread id: %ld kernel id: %d] done with threadfunction...\n", pthread_self(), attr->id);
+        return nullptr;
     }
 
     static void *threadFunction(void *args)

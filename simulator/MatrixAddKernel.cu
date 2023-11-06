@@ -21,10 +21,10 @@ void MatrixAddKernel::memAlloc()
     checkCudaErrors(cuMemAlloc(&d_b, N * sizeof(double)));
     checkCudaErrors(cuMemAlloc(&d_c, N * sizeof(double)));
 
-    for (int i = 0; i < N; ++i)
-    {
-        printf("[thread id: %ld] %.3f, %.3f\n", pthread_self(), h_a[i], h_b[i]);
-    }
+    // for (int i = 0; i < N; ++i)
+    // {
+    //     printf("[thread id: %ld] %.3f, %.3f\n", pthread_self(), h_a[i], h_b[i]);
+    // }
 
     args[3] = &d_a;
     args[4] = &d_b;
@@ -44,10 +44,10 @@ void MatrixAddKernel::memcpyDtoH(const CUstream &stream)
 
 void MatrixAddKernel::memFree()
 {
-    for (int i = 0; i < N; ++i)
-    {
-        printf("[thread id: %ld] %.3f, %.3f, %.3f\n", pthread_self(), h_a[i], h_b[i], h_c[i]);
-    }
+    // for (int i = 0; i < N; ++i)
+    // {
+    //     printf("[thread id: %ld] %.3f, %.3f, %.3f\n", pthread_self(), h_a[i], h_b[i], h_c[i]);
+    // }
 
     checkCudaErrors(cuMemFree(d_a));
     checkCudaErrors(cuMemFree(d_b));

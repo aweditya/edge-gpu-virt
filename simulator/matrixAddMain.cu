@@ -1,12 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <string>
 #include <vector>
 #include "KernelWrapper.h"
 #include "MatrixAddKernel.h"
+#include "FCFSScheduler.h"
 
 CUdevice device;
 CUcontext context;
@@ -52,18 +52,20 @@ void finishCuda()
 
 int main(int argc, char **argv)
 {
+    initCuda();
+    srand(0);
+
+    FCFSScheduler scheduler;
+
     const std::string moduleFile1 = "./ptx/matrixAdd1.ptx";
+    const std::string moduleFile2 = "./ptx/matrixAdd2.ptx";
     const std::string kernelName = "matrixAdd";
 
-    srand(0);
-    Scheduler scheduler;
-
-    initCuda();
-
-    CUstream stream1;
+    CUstream stream1, stream2;
     checkCudaErrors(cuStreamCreate(&stream1, CU_STREAM_DEFAULT));
+    checkCudaErrors(cuStreamCreate(&stream2, CU_STREAM_DEFAULT));
 
-    MatrixAddKernel matrixAddKernel1;
+    MatrixAddKernel matrixAddKernel1, matrixAddKernel2;
     kernel_attr_t attr1 = {
         .gridDimX = N,
         .gridDimY = 1,
@@ -77,31 +79,34 @@ int main(int argc, char **argv)
         .sharedMemBytes = 0,
         .stream = stream1};
 
+    kernel_attr_t attr2 = {
+        .gridDimX = N,
+        .gridDimY = 1,
+        .gridDimZ = 1,
+        .blockDimX = 1,
+        .blockDimY = 1,
+        .blockDimZ = 1,
+        .sGridDimX = N / 16,
+        .sGridDimY = 1,
+        .sGridDimZ = 1,
+        .sharedMemBytes = 0,
+        .stream = stream2};
+
     KernelWrapper wrapper1(&scheduler, context, moduleFile1, kernelName, &attr1, &matrixAddKernel1);
+    KernelWrapper wrapper2(&scheduler, context, moduleFile2, kernelName, &attr2, &matrixAddKernel2);
 
+    scheduler.run();
     wrapper1.launch();
-    while (true)
-    {
-        if (scheduler.activeKernels.size() == 0)
-        {
-            continue;
-        }
-        else
-        {        
-            attr1.kcb.slicesToLaunch = 2;
-            scheduler.launchKernel(&attr1);
-
-            if (attr1.kcb.totalSlices == 0)
-            {
-                set_state(&(attr1.kcb), MEMCPYDTOH, true);
-                break;
-            }
-        }
-    }
+    wrapper2.launch();
 
     wrapper1.finish();
+    wrapper2.finish();
+    
+    scheduler.stop();
+    scheduler.finish();
 
     checkCudaErrors(cuStreamDestroy(stream1));
+    checkCudaErrors(cuStreamDestroy(stream2));
     finishCuda();
 
     return 0;

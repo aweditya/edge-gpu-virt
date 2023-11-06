@@ -1,5 +1,5 @@
-#ifndef _KERNEL_H
-#define _KERNEL_H
+#ifndef _KERNEL_ATTRIBUTES_H
+#define _KERNEL_ATTRIBUTES_H
 
 #include <cuda.h>
 #include <cuda_runtime.h>
