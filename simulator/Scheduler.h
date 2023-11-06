@@ -14,7 +14,7 @@
 class Scheduler
 {
 public:
-    Scheduler(bool *done) : done(done) { pthread_mutex_init(&mutex, NULL); }
+    Scheduler() : done(false) { pthread_mutex_init(&mutex, NULL); }
     ~Scheduler() { pthread_mutex_destroy(&mutex); }
 
     void scheduleKernel(kernel_attr_t *kernel);
@@ -25,20 +25,25 @@ public:
         pthread_create(&schedulerThread, NULL, threadFunction, this);
     }
 
+    void stop()
+    {
+        done = true;
+    }
+
     void finish()
     {
         pthread_join(schedulerThread, NULL);
     }
 
 private:
-    bool *done;
+    bool done;
     pthread_t schedulerThread;
     pthread_mutex_t mutex;
     std::vector<kernel_attr_t *> activeKernels;
 
     void *threadFunction()
     {
-        while (!(*done))
+        while (!done)
         {
             if (activeKernels.size() == 0)
             {
@@ -59,6 +64,7 @@ private:
                     pthread_mutex_unlock(&mutex);
                 }
 
+                // pthread_mutex_lock(&mutex);
                 // for (auto it = activeKernels.begin(); it != activeKernels.end();)
                 // {
                 //     (*it)->kcb.slicesToLaunch = 2;
@@ -67,15 +73,14 @@ private:
                 //     if ((*it)->kcb.totalSlices == 0)
                 //     {
                 //         set_state(&((*it)->kcb), MEMCPYDTOH, true);
-                //         pthread_mutex_lock(&mutex);
                 //         it = activeKernels.erase(it);
-                //         pthread_mutex_unlock(&mutex);
                 //     }
                 //     else
                 //     {
                 //         ++it;
                 //     }
                 // }
+                // pthread_mutex_unlock(&mutex);
             }
         }
         return nullptr;

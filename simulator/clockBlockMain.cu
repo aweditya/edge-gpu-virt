@@ -58,8 +58,7 @@ int main(int argc, char **argv)
     initCuda();
     srand(0);
 
-    bool done = false;
-    Scheduler scheduler(&done);
+    Scheduler scheduler;
 
     const std::string moduleFile1 = "./ptx/clockBlock1.ptx";
     const std::string moduleFile2 = "./ptx/clockBlock2.ptx";
@@ -106,9 +105,8 @@ int main(int argc, char **argv)
     wrapper1.finish();
     wrapper2.finish();
 
-    done = true;
+    scheduler.stop();
     scheduler.finish();
-    
 
     checkCudaErrors(cuStreamDestroy(stream1));
     checkCudaErrors(cuStreamDestroy(stream2));

@@ -4,6 +4,7 @@
 #include <cuda_runtime.h>
 #include <string>
 #include <vector>
+#include <chrono>
 #include "KernelWrapper.h"
 #include "MatrixAddKernel.h"
 
@@ -54,8 +55,7 @@ int main(int argc, char **argv)
     initCuda();
     srand(0);
 
-    bool done = false;
-    Scheduler scheduler(&done);
+    Scheduler scheduler;
 
     const std::string moduleFile1 = "./ptx/matrixAdd1.ptx";
     const std::string moduleFile2 = "./ptx/matrixAdd2.ptx";
@@ -102,7 +102,7 @@ int main(int argc, char **argv)
     wrapper1.finish();
     wrapper2.finish();
     
-    done = true;
+    scheduler.stop();
     scheduler.finish();
 
     checkCudaErrors(cuStreamDestroy(stream1));
