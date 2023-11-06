@@ -5,7 +5,7 @@ void ClockBlockKernel::memAlloc()
     h_a = (long *)malloc(sizeof(long));
     checkCudaErrors(cuMemAlloc(&d_a, sizeof(long)));
 
-    clock_count = 2000L * clockRate;
+    clock_count = KERNEL_TIME * clockRate;
 
     args[3] = &d_a;
     args[4] = &clock_count;
