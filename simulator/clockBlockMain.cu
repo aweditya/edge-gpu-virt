@@ -61,8 +61,7 @@ int main(int argc, char **argv)
 
     FCFSScheduler scheduler;
 
-    const std::string moduleFile1 = "./ptx/clockBlock1.ptx";
-    const std::string moduleFile2 = "./ptx/clockBlock2.ptx";
+    const std::string moduleFile = "./ptx/clockBlock.ptx";
     const std::string kernelName = "clockBlock";
 
     CUstream stream1, stream2;
@@ -96,8 +95,8 @@ int main(int argc, char **argv)
         .sharedMemBytes = 0,
         .stream = stream2};
 
-    KernelWrapper wrapper1(&scheduler, context, moduleFile1, kernelName, &attr1, &clockBlockKernel1);
-    KernelWrapper wrapper2(&scheduler, context, moduleFile2, kernelName, &attr2, &clockBlockKernel2);
+    KernelWrapper wrapper1(&scheduler, context, moduleFile, kernelName, &attr1, &clockBlockKernel1);
+    KernelWrapper wrapper2(&scheduler, context, moduleFile, kernelName, &attr2, &clockBlockKernel2);
 
     scheduler.run();
     wrapper1.launch();

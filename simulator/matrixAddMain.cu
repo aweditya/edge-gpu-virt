@@ -6,7 +6,7 @@
 #include <vector>
 #include "KernelWrapper.h"
 #include "MatrixAddKernel.h"
-#include "FCFSScheduler.h"
+#include "RoundRobinScheduler.h"
 
 CUdevice device;
 CUcontext context;
@@ -55,10 +55,9 @@ int main(int argc, char **argv)
     initCuda();
     srand(0);
 
-    FCFSScheduler scheduler;
+    RoundRobinScheduler scheduler;
 
-    const std::string moduleFile1 = "./ptx/matrixAdd1.ptx";
-    const std::string moduleFile2 = "./ptx/matrixAdd2.ptx";
+    const std::string moduleFile = "./ptx/matrixAdd.ptx";
     const std::string kernelName = "matrixAdd";
 
     CUstream stream1, stream2;
@@ -92,8 +91,8 @@ int main(int argc, char **argv)
         .sharedMemBytes = 0,
         .stream = stream2};
 
-    KernelWrapper wrapper1(&scheduler, context, moduleFile1, kernelName, &attr1, &matrixAddKernel1);
-    KernelWrapper wrapper2(&scheduler, context, moduleFile2, kernelName, &attr2, &matrixAddKernel2);
+    KernelWrapper wrapper1(&scheduler, context, moduleFile, kernelName, &attr1, &matrixAddKernel1);
+    KernelWrapper wrapper2(&scheduler, context, moduleFile, kernelName, &attr2, &matrixAddKernel2);
 
     scheduler.run();
     wrapper1.launch();
