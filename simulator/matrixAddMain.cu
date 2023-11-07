@@ -1,3 +1,4 @@
+#include <sys/time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <cuda.h>
@@ -7,6 +8,9 @@
 #include "KernelWrapper.h"
 #include "MatrixAddKernel.h"
 #include "RoundRobinScheduler.h"
+#include "FCFSScheduler.h"
+
+#define NUM_KERNELS 50
 
 CUdevice device;
 CUcontext context;
@@ -56,56 +60,62 @@ int main(int argc, char **argv)
     srand(0);
 
     RoundRobinScheduler scheduler;
+    // FCFSScheduler scheduler;
 
     const std::string moduleFile = "./ptx/matrixAdd.ptx";
     const std::string kernelName = "matrixAdd";
 
-    CUstream stream1, stream2;
-    checkCudaErrors(cuStreamCreate(&stream1, CU_STREAM_DEFAULT));
-    checkCudaErrors(cuStreamCreate(&stream2, CU_STREAM_DEFAULT));
+    CUstream streams[NUM_KERNELS];
+    MatrixAddKernel matrixAddKernels[NUM_KERNELS];
+    kernel_attr_t attrs[NUM_KERNELS];
+    std::vector<KernelWrapper> wrappers;
+    for (int i = 0; i < NUM_KERNELS; ++i)
+    {
+        checkCudaErrors(cuStreamCreate(&streams[i], CU_STREAM_DEFAULT));
+        attrs[i] = {
+            .gridDimX = N,
+            .gridDimY = 1,
+            .gridDimZ = 1,
+            .blockDimX = 1,
+            .blockDimY = 1,
+            .blockDimZ = 1,
+            .sGridDimX = N / 16,
+            .sGridDimY = 1,
+            .sGridDimZ = 1,
+            .sharedMemBytes = 0,
+            .stream = streams[i]};
 
-    MatrixAddKernel matrixAddKernel1, matrixAddKernel2;
-    kernel_attr_t attr1 = {
-        .gridDimX = N,
-        .gridDimY = 1,
-        .gridDimZ = 1,
-        .blockDimX = 1,
-        .blockDimY = 1,
-        .blockDimZ = 1,
-        .sGridDimX = N / 16,
-        .sGridDimY = 1,
-        .sGridDimZ = 1,
-        .sharedMemBytes = 0,
-        .stream = stream1};
+        KernelWrapper wrapper(&scheduler, context, moduleFile, kernelName, &attrs[i], &matrixAddKernels[i]);
+        wrappers.emplace_back(wrapper);
+    }
 
-    kernel_attr_t attr2 = {
-        .gridDimX = N,
-        .gridDimY = 1,
-        .gridDimZ = 1,
-        .blockDimX = 1,
-        .blockDimY = 1,
-        .blockDimZ = 1,
-        .sGridDimX = N / 16,
-        .sGridDimY = 1,
-        .sGridDimZ = 1,
-        .sharedMemBytes = 0,
-        .stream = stream2};
-
-    KernelWrapper wrapper1(&scheduler, context, moduleFile, kernelName, &attr1, &matrixAddKernel1);
-    KernelWrapper wrapper2(&scheduler, context, moduleFile, kernelName, &attr2, &matrixAddKernel2);
+    struct timeval t0, t1, dt;
+    gettimeofday(&t0, NULL);
 
     scheduler.run();
-    wrapper1.launch();
-    wrapper2.launch();
 
-    wrapper1.finish();
-    wrapper2.finish();
-    
+    for (int i = 0; i < NUM_KERNELS; ++i)
+    {
+        wrappers[i].launch();
+    }
+
+    for (int i = 0; i < NUM_KERNELS; ++i)
+    {
+        wrappers[i].finish();
+    }
+
     scheduler.stop();
     scheduler.finish();
 
-    checkCudaErrors(cuStreamDestroy(stream1));
-    checkCudaErrors(cuStreamDestroy(stream2));
+    gettimeofday(&t1, NULL);
+    timersub(&t1, &t0, &dt);
+    printf("[main thread] done in %ld.%06ld\n", dt.tv_sec, dt.tv_usec);
+
+    for (int i = 0; i < NUM_KERNELS; ++i)
+    {
+        checkCudaErrors(cuStreamDestroy(streams[i]));
+    }
+
     finishCuda();
 
     return 0;

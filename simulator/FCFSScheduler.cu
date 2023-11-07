@@ -18,7 +18,6 @@ void FCFSScheduler::schedule()
     }
     else
     {
-        printf("[thread id: %ld] number of kernels: %ld\n", pthread_self(), activeKernels.size());
         activeKernels.front()->kcb.slicesToLaunch = 2;
         launchKernel(activeKernels.front());
         if (activeKernels.front()->kcb.totalSlices == 0)

@@ -64,6 +64,10 @@ private:
 
     void *threadFunction()
     {
+        struct timeval t0, t1, dt;
+
+        gettimeofday(&t0, NULL);
+
         checkCudaErrors(cuCtxSetCurrent(context));
         checkCudaErrors(cuModuleLoad(&module, moduleFile.c_str()));
         checkCudaErrors(cuModuleGetFunction(&(attr->function), module, kernelName.c_str()));
@@ -85,7 +89,9 @@ private:
         kernel->memcpyDtoH(attr->stream);
         kernel->memFree();
         
-        printf("[thread id: %ld kernel id: %d] done with threadfunction...\n", pthread_self(), attr->id);
+        gettimeofday(&t1, NULL);
+        timersub(&t1, &t0, &dt);
+        printf("[thread id: %ld kernel id: %d] done in %ld.%06ldsec\n", pthread_self(), attr->id, dt.tv_sec, dt.tv_usec);
         return nullptr;
     }
 

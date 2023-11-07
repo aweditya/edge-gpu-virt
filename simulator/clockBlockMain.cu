@@ -1,3 +1,4 @@
+#include <sys/time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <cuda.h>
@@ -6,7 +7,10 @@
 #include <vector>
 #include "KernelWrapper.h"
 #include "ClockBlockKernel.h"
+#include "RoundRobinScheduler.h"
 #include "FCFSScheduler.h"
+
+#define NUM_KERNELS 10
 
 CUdevice device;
 int clockRate;
@@ -59,57 +63,66 @@ int main(int argc, char **argv)
     initCuda();
     srand(0);
 
-    FCFSScheduler scheduler;
+    RoundRobinScheduler scheduler;
+    // FCFSScheduler scheduler;
 
     const std::string moduleFile = "./ptx/clockBlock.ptx";
     const std::string kernelName = "clockBlock";
 
-    CUstream stream1, stream2;
-    checkCudaErrors(cuStreamCreate(&stream1, CU_STREAM_DEFAULT));
-    checkCudaErrors(cuStreamCreate(&stream2, CU_STREAM_DEFAULT));
+    CUstream streams[NUM_KERNELS];
+    std::vector<ClockBlockKernel> clockBlockKernels;
+    clockBlockKernels.reserve(NUM_KERNELS);
 
-    ClockBlockKernel clockBlockKernel1(clockRate), clockBlockKernel2(clockRate);
-    kernel_attr_t attr1 = {
-        .gridDimX = 8,
-        .gridDimY = 1,
-        .gridDimZ = 1,
-        .blockDimX = 128,
-        .blockDimY = 1,
-        .blockDimZ = 1,
-        .sGridDimX = 8 / 4,
-        .sGridDimY = 1,
-        .sGridDimZ = 1,
-        .sharedMemBytes = 0,
-        .stream = stream1};
+    kernel_attr_t attrs[NUM_KERNELS];
+    std::vector<KernelWrapper> wrappers;
+    for (int i = 0; i < NUM_KERNELS; ++i)
+    {
+        checkCudaErrors(cuStreamCreate(&streams[i], CU_STREAM_DEFAULT));
+        attrs[i] = {
+            .gridDimX = 8,
+            .gridDimY = 1,
+            .gridDimZ = 1,
+            .blockDimX = 128,
+            .blockDimY = 1,
+            .blockDimZ = 1,
+            .sGridDimX = 8 / 4,
+            .sGridDimY = 1,
+            .sGridDimZ = 1,
+            .sharedMemBytes = 0,
+            .stream = streams[i]};
 
-    kernel_attr_t attr2 = {
-        .gridDimX = 8,
-        .gridDimY = 1,
-        .gridDimZ = 1,
-        .blockDimX = 128,
-        .blockDimY = 1,
-        .blockDimZ = 1,
-        .sGridDimX = 8 / 4,
-        .sGridDimY = 1,
-        .sGridDimZ = 1,
-        .sharedMemBytes = 0,
-        .stream = stream2};
+        clockBlockKernels.emplace_back(clockRate);
+        KernelWrapper wrapper(&scheduler, context, moduleFile, kernelName, &attrs[i], &clockBlockKernels[i]);
+        wrappers.emplace_back(wrapper);
+    }
 
-    KernelWrapper wrapper1(&scheduler, context, moduleFile, kernelName, &attr1, &clockBlockKernel1);
-    KernelWrapper wrapper2(&scheduler, context, moduleFile, kernelName, &attr2, &clockBlockKernel2);
+    struct timeval t0, t1, dt;
+    gettimeofday(&t0, NULL);
 
     scheduler.run();
-    wrapper1.launch();
-    wrapper2.launch();
 
-    wrapper1.finish();
-    wrapper2.finish();
+    for (int i = 0; i < NUM_KERNELS; ++i)
+    {
+        wrappers[i].launch();
+    }
+
+    for (int i = 0; i < NUM_KERNELS; ++i)
+    {
+        wrappers[i].finish();
+    }
 
     scheduler.stop();
     scheduler.finish();
 
-    checkCudaErrors(cuStreamDestroy(stream1));
-    checkCudaErrors(cuStreamDestroy(stream2));
+    gettimeofday(&t1, NULL);
+    timersub(&t1, &t0, &dt);
+    printf("[main thread] done in %ld.%06ld\n", dt.tv_sec, dt.tv_usec);
+
+    for (int i = 0; i < NUM_KERNELS; ++i)
+    {
+        checkCudaErrors(cuStreamDestroy(streams[i]));
+    }
+
     finishCuda();
 
     return 0;

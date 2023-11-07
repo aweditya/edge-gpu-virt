@@ -22,7 +22,7 @@ public:
     {
         for (int i = 0; i < min(kernel->kcb.slicesToLaunch, kernel->kcb.totalSlices); ++i)
         {
-            printf("[kernel id: %d] slices left = %d\n", kernel->id, kernel->kcb.totalSlices);
+            // printf("[kernel id: %d] slices left = %d\n", kernel->id, kernel->kcb.totalSlices);
             checkCudaErrors(cuLaunchKernel(kernel->function,
                                            kernel->sGridDimX,
                                            kernel->sGridDimY,
