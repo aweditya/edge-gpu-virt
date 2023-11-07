@@ -37,6 +37,11 @@ public:
 
     ~KernelWrapper() {}
 
+    void setNiceValue(unsigned int niceness = 0)
+    {
+        attr->niceness = niceness;
+    }
+
     void launch()
     {
         pthread_create(&thread, NULL, threadFunction, this);
@@ -88,10 +93,10 @@ private:
 
         kernel->memcpyDtoH(attr->stream);
         kernel->memFree();
-        
+
         gettimeofday(&t1, NULL);
         timersub(&t1, &t0, &dt);
-        printf("[thread id: %ld kernel id: %d] done in %ld.%06ldsec\n", pthread_self(), attr->id, dt.tv_sec, dt.tv_usec);
+        printf("[thread id: %ld\tkernel id: %d\tniceness: %d] done in %ld.%06ldsec\n", pthread_self(), attr->id, attr->niceness, dt.tv_sec, dt.tv_usec);
         return nullptr;
     }
 

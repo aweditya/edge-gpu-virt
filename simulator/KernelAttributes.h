@@ -32,6 +32,16 @@ typedef struct kernel_attr
     void **kernelParams;
 
     kernel_control_block_t kcb;
+
+    unsigned int niceness = 0;
 } kernel_attr_t;
+
+struct compare_kernel_attr
+{
+    bool operator()(kernel_attr_t *attr_a, kernel_attr_t *attr_b) const
+    {
+        return attr_a->niceness > attr_b->niceness;
+    }
+};
 
 #endif

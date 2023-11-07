@@ -9,6 +9,7 @@
 #include "ClockBlockKernel.h"
 #include "RoundRobinScheduler.h"
 #include "FCFSScheduler.h"
+#include "PriorityScheduler.h"
 
 #define NUM_KERNELS 10
 
@@ -93,6 +94,7 @@ int main(int argc, char **argv)
 
         clockBlockKernels.emplace_back(clockRate);
         KernelWrapper wrapper(&scheduler, context, moduleFile, kernelName, &attrs[i], &clockBlockKernels[i]);
+        wrapper.setNiceValue(i % 2);
         wrappers.emplace_back(wrapper);
     }
 

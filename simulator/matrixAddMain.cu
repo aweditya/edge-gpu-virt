@@ -9,6 +9,7 @@
 #include "MatrixAddKernel.h"
 #include "RoundRobinScheduler.h"
 #include "FCFSScheduler.h"
+#include "PriorityScheduler.h"
 
 #define NUM_KERNELS 50
 
@@ -59,8 +60,9 @@ int main(int argc, char **argv)
     initCuda();
     srand(0);
 
-    RoundRobinScheduler scheduler;
+    // RoundRobinScheduler scheduler;
     // FCFSScheduler scheduler;
+    PriorityScheduler scheduler;
 
     const std::string moduleFile = "./ptx/matrixAdd.ptx";
     const std::string kernelName = "matrixAdd";
@@ -86,6 +88,7 @@ int main(int argc, char **argv)
             .stream = streams[i]};
 
         KernelWrapper wrapper(&scheduler, context, moduleFile, kernelName, &attrs[i], &matrixAddKernels[i]);
+        wrapper.setNiceValue(i % 2);
         wrappers.emplace_back(wrapper);
     }
 
