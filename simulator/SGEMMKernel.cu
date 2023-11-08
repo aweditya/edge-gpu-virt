@@ -14,6 +14,15 @@ void SGEMMKernel::memAlloc()
     checkCudaErrors(cuMemAlloc(&dA, A_sz));
     checkCudaErrors(cuMemAlloc(&dB, B_sz));
     checkCudaErrors(cuMemAlloc(&dC, C_sz));
+
+    args[3] = &dA;
+    args[4] = &matArow;
+    args[5] = &dB;
+    args[6] = &matBcol;
+    args[7] = &dC;
+    args[8] = &matAcol;
+    args[9] = &alpha;
+    args[10] = &beta;
 }
 
 void SGEMMKernel::memcpyHtoD(const CUstream &stream)

@@ -19,7 +19,7 @@ public:
     virtual void getKernelConfig(unsigned int &gridDimX, unsigned int &gridDimY, unsigned int &gridDimZ,
                                  unsigned int &blockDimX, unsigned int &blockDimY, unsigned int &blockDimZ) = 0;
 
-    void *args[8];
+    void *args[16];
 };
 
 #endif
