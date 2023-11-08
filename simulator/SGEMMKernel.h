@@ -23,6 +23,18 @@ class SGEMMKernel : public Kernel
     void memcpyDtoH(const CUstream &stream);
     void memFree();
 
+    void getKernelConfig(unsigned int &gridDimX, unsigned int &gridDimY, unsigned int &gridDimZ,
+                         unsigned int &blockDimX, unsigned int &blockDimY, unsigned int &blockDimZ)
+    {
+        gridDimX = matArow / TILE_M;
+        gridDimY = matBcol / TILE_N;
+        gridDimZ = 1;
+
+        blockDimX = TILE_N;
+        blockDimY = TILE_TB_HEIGHT;
+        blockDimZ = 1;
+    }
+
 private:
     pb_Parameters *params;
 

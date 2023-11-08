@@ -18,6 +18,18 @@ public:
     void memcpyDtoH(const CUstream &stream);
     void memFree();
 
+    void getKernelConfig(unsigned int &gridDimX, unsigned int &gridDimY, unsigned int &gridDimZ,
+                         unsigned int &blockDimX, unsigned int &blockDimY, unsigned int &blockDimZ)
+    {
+        gridDimX = 8;
+        gridDimY = 1;
+        gridDimZ = 1;
+
+        blockDimX = 128;
+        blockDimY = 1;
+        blockDimZ = 1;
+    }
+
 private:
     int clockRate;
     long clock_count;

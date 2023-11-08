@@ -19,6 +19,18 @@ public:
     void memcpyDtoH(const CUstream &stream);
     void memFree();
 
+    void getKernelConfig(unsigned int &gridDimX, unsigned int &gridDimY, unsigned int &gridDimZ,
+                         unsigned int &blockDimX, unsigned int &blockDimY, unsigned int &blockDimZ)
+    {
+        gridDimX = N;
+        gridDimY = 1;
+        gridDimZ = 1;
+
+        blockDimX = 1;
+        blockDimY = 1;
+        blockDimZ = 1;
+    }
+
 private:
     double *h_a, *h_b, *h_c;
     CUdeviceptr d_a, d_b, d_c;

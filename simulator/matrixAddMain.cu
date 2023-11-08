@@ -74,18 +74,14 @@ int main(int argc, char **argv)
     for (int i = 0; i < NUM_KERNELS; ++i)
     {
         checkCudaErrors(cuStreamCreate(&streams[i], CU_STREAM_DEFAULT));
-        attrs[i] = {
-            .gridDimX = N,
-            .gridDimY = 1,
-            .gridDimZ = 1,
-            .blockDimX = 1,
-            .blockDimY = 1,
-            .blockDimZ = 1,
-            .sGridDimX = N / 16,
-            .sGridDimY = 1,
-            .sGridDimZ = 1,
-            .sharedMemBytes = 0,
-            .stream = streams[i]};
+        matrixAddKernels[i].getKernelConfig(attrs[i].gridDimX, attrs[i].gridDimY, attrs[i].gridDimZ,
+                                            attrs[i].blockDimX, attrs[i].blockDimY, attrs[i].blockDimZ);
+
+        attrs[i].sGridDimX = attrs[i].gridDimX / 16;
+        attrs[i].sGridDimY = attrs[i].gridDimY;
+        attrs[i].sGridDimZ = attrs[i].gridDimZ;
+        attrs[i].sharedMemBytes = 0;
+        attrs[i].stream = streams[i];
 
         KernelWrapper wrapper(&scheduler, context, moduleFile, kernelName, &attrs[i], &matrixAddKernels[i]);
         wrapper.setNiceValue(i % 2);

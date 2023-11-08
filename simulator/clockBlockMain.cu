@@ -79,20 +79,17 @@ int main(int argc, char **argv)
     for (int i = 0; i < NUM_KERNELS; ++i)
     {
         checkCudaErrors(cuStreamCreate(&streams[i], CU_STREAM_DEFAULT));
-        attrs[i] = {
-            .gridDimX = 8,
-            .gridDimY = 1,
-            .gridDimZ = 1,
-            .blockDimX = 128,
-            .blockDimY = 1,
-            .blockDimZ = 1,
-            .sGridDimX = 8 / 4,
-            .sGridDimY = 1,
-            .sGridDimZ = 1,
-            .sharedMemBytes = 0,
-            .stream = streams[i]};
-
         clockBlockKernels.emplace_back(clockRate);
+
+        clockBlockKernels[i].getKernelConfig(attrs[i].gridDimX, attrs[i].gridDimY, attrs[i].gridDimZ,
+                                             attrs[i].blockDimX, attrs[i].blockDimY, attrs[i].blockDimZ);
+
+        attrs[i].sGridDimX = attrs[i].gridDimX / 4;
+        attrs[i].sGridDimY = 1;
+        attrs[i].sGridDimZ = 1;
+        attrs[i].sharedMemBytes = 0;
+        attrs[i].stream = streams[i];
+
         KernelWrapper wrapper(&scheduler, context, moduleFile, kernelName, &attrs[i], &clockBlockKernels[i]);
         wrapper.setNiceValue(i % 2);
         wrappers.emplace_back(wrapper);
