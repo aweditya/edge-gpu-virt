@@ -16,7 +16,7 @@ public:
 
     void memAlloc();
     void memcpyHtoD(const CUstream &stream);
-    void memcpyDtoH(const Custream &stream);
+    void memcpyDtoH(const CUstream &stream);
     void memFree();
 
 private:
