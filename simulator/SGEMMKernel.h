@@ -15,7 +15,11 @@ extern bool readColMajorMatrixFile(const char *fn, int &nr_row, int &nr_col, std
 
 class SGEMMKernel : public Kernel
 {
-    SGEMMKernel(pb_Parameters *params) : params(params) {}
+    SGEMMKernel(struct pb_Parameters *params) : params(params)
+    {
+        alpha = 1.0f;
+        beta = 1.0f;
+    }
     ~SGEMMKernel() {}
 
     void memAlloc();
@@ -36,8 +40,9 @@ class SGEMMKernel : public Kernel
     }
 
 private:
-    pb_Parameters *params;
+    struct pb_Parameters *params;
 
+    float alpha, beta;
     size_t A_sz, B_sz, C_sz;
     int matArow, matAcol;
     int matBrow, matBcol;
