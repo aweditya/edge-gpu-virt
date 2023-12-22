@@ -5,16 +5,16 @@
 #include <cuda_runtime.h>
 #include <string>
 #include <vector>
+#include <parboil.h>
 #include "KernelWrapper.h"
-#include "ClockBlockKernel.h"
+#include "SGEMMKernel.h"
 #include "RoundRobinScheduler.h"
 #include "FCFSScheduler.h"
 #include "PriorityScheduler.h"
 
-#define NUM_KERNELS 10
+#define NUM_KERNELS 50
 
 CUdevice device;
-int clockRate;
 CUcontext context;
 size_t totalGlobalMem;
 
@@ -38,9 +38,6 @@ void initCuda()
     cuDeviceGetName(name, 100, device);
     printf("> Using device 0: %s\n", name);
 
-    // get device properties
-    checkCudaErrors(cuDeviceGetAttribute(&clockRate, CU_DEVICE_ATTRIBUTE_CLOCK_RATE, device));
-
     // get compute capabilities and the devicename
     checkCudaErrors(cuDeviceComputeCapability(&major, &minor, device));
     printf("> GPU Device has SM %d.%d compute capability\n", major, minor);
@@ -61,36 +58,49 @@ void finishCuda()
 
 int main(int argc, char **argv)
 {
+    struct pb_Parameters *params;
+
+    /* Read command line. Expect 3 inputs: A, B and B^T
+       in column-major layout*/
+    params = pb_ReadParameters(&argc, argv);
+    printf("%s %s %s\n", params->inpFiles[0], params->inpFiles[1], params->inpFiles[2]);
+    if ((params->inpFiles[0] == NULL) || (params->inpFiles[1] == NULL) || (params->inpFiles[2] == NULL) || (params->inpFiles[3] != NULL))
+    {
+        fprintf(stderr, "Expecting three input filenames\n");
+        exit(-1);
+    }
+
     initCuda();
     srand(0);
 
-    RoundRobinScheduler scheduler;
-    // FCFSScheduler scheduler;
+    // RoundRobinScheduler scheduler;
+    FCFSScheduler scheduler;
+    // PriorityScheduler scheduler;
 
-    const std::string moduleFile = "./ptx/clockBlock.ptx";
-    const std::string kernelName = "clockBlock";
+    const std::string moduleFile = "SGEMM.ptx";
+    const std::string kernelName = "SGEMM";
 
     CUstream streams[NUM_KERNELS];
-    std::vector<ClockBlockKernel> clockBlockKernels;
-    clockBlockKernels.reserve(NUM_KERNELS);
-
+    std::vector<SGEMMKernel> sgemmKernels;
+    sgemmKernels.reserve(NUM_KERNELS);
+    
     kernel_attr_t attrs[NUM_KERNELS];
     std::vector<KernelWrapper> wrappers;
     for (int i = 0; i < NUM_KERNELS; ++i)
     {
         checkCudaErrors(cuStreamCreate(&streams[i], CU_STREAM_DEFAULT));
-        clockBlockKernels.emplace_back(clockRate);
+        sgemmKernels.emplace_back(params);
 
-        clockBlockKernels[i].getKernelConfig(attrs[i].gridDimX, attrs[i].gridDimY, attrs[i].gridDimZ,
-                                             attrs[i].blockDimX, attrs[i].blockDimY, attrs[i].blockDimZ);
+        sgemmKernels[i].getKernelConfig(attrs[i].gridDimX, attrs[i].gridDimY, attrs[i].gridDimZ,
+                                        attrs[i].blockDimX, attrs[i].blockDimY, attrs[i].blockDimZ);
 
-        attrs[i].sGridDimX = attrs[i].gridDimX / 4;
-        attrs[i].sGridDimY = 1;
-        attrs[i].sGridDimZ = 1;
+        attrs[i].sGridDimX = attrs[i].gridDimX / 2;
+        attrs[i].sGridDimY = attrs[i].gridDimY / 3;
+        attrs[i].sGridDimZ = attrs[i].gridDimZ;
         attrs[i].sharedMemBytes = 0;
         attrs[i].stream = streams[i];
 
-        KernelWrapper wrapper(&scheduler, context, moduleFile, kernelName, &attrs[i], &clockBlockKernels[i]);
+        KernelWrapper wrapper(&scheduler, context, moduleFile, kernelName, &attrs[i], &sgemmKernels[i]);
         wrapper.setNiceValue(i % 2);
         wrappers.emplace_back(wrapper);
     }

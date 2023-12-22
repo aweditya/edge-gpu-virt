@@ -64,7 +64,7 @@ int main(int argc, char **argv)
     // FCFSScheduler scheduler;
     PriorityScheduler scheduler;
 
-    const std::string moduleFile = "./ptx/matrixAdd.ptx";
+    const std::string moduleFile = "matrixAdd.ptx";
     const std::string kernelName = "matrixAdd";
 
     CUstream streams[NUM_KERNELS];

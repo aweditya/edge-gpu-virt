@@ -15,6 +15,7 @@ extern bool readColMajorMatrixFile(const char *fn, int &nr_row, int &nr_col, std
 
 class SGEMMKernel : public Kernel
 {
+public:
     SGEMMKernel(struct pb_Parameters *params) : params(params)
     {
         alpha = 1.0f;
