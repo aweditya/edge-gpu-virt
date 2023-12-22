@@ -13,9 +13,10 @@ void SGEMMKernel::memAlloc()
     args[5] = &dB;
     args[6] = &matBcol;
     args[7] = &dC;
-    args[8] = &matAcol;
-    args[9] = &alpha;
-    args[10] = &beta;
+    args[8] = &matArow;
+    args[9] = &matAcol;
+    args[10] = &alpha;
+    args[11] = &beta;
 }
 
 void SGEMMKernel::memcpyHtoD(const CUstream &stream)
