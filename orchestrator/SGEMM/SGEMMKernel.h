@@ -20,6 +20,13 @@ public:
     {
         alpha = 1.0f;
         beta = 1.0f;
+
+        readColMajorMatrixFile(params->inpFiles[1], matArow, matAcol, matA);
+        readColMajorMatrixFile(params->inpFiles[2], matBcol, matBrow, matBT);
+
+        A_sz = matArow * matAcol * sizeof(float);
+        B_sz = matBrow * matBcol * sizeof(float);
+        C_sz = matArow * matBcol * sizeof(float);
     }
     ~SGEMMKernel() {}
 

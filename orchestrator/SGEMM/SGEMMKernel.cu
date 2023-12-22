@@ -2,13 +2,6 @@
 
 void SGEMMKernel::memAlloc()
 {
-    readColMajorMatrixFile(params->inpFiles[1], matArow, matAcol, matA);
-
-    readColMajorMatrixFile(params->inpFiles[2], matBcol, matBrow, matBT);
-
-    A_sz = matArow * matAcol * sizeof(float);
-    B_sz = matBrow * matBcol * sizeof(float);
-    C_sz = matArow * matBcol * sizeof(float);
     matC = std::vector<float>(C_sz);
 
     checkCudaErrors(cuMemAlloc(&dA, A_sz));

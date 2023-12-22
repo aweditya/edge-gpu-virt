@@ -12,7 +12,7 @@
 #include "FCFSScheduler.h"
 #include "PriorityScheduler.h"
 
-#define NUM_KERNELS 50
+#define NUM_KERNELS 2
 
 CUdevice device;
 CUcontext context;
