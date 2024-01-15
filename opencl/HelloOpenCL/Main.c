@@ -1,8 +1,11 @@
 // C standard includes
 #include <stdio.h>
+#include <stdlib.h>
 
 // OpenCL includes
-#include <CL/cl.h>
+#include <CL/Utils/Utils.h>
+
+#define LENGTH 1024
 
 typedef struct platform_info
 {
@@ -11,7 +14,7 @@ typedef struct platform_info
     char name[64];
     char vendor[64];
     char extensions[64];
-} platform_info_t;
+} platform_info;
 
 typedef struct device_info
 {
@@ -22,10 +25,47 @@ typedef struct device_info
     size_t max_work_group_size;
     cl_uint max_clk_freq;
     cl_uint device_addr_bits;
-} device_info_t;
+} device_info;
+
+/**
+ * Taken from https://github.com/DennisJung/SCWS2016/blob/master/imgdiff/imgdiff_opencl.c
+ */
+int readSourceFromFile(const char *filename, char **source, size_t *sourceSize)
+{
+    int err = CL_SUCCESS;
+
+    FILE *fp = NULL;
+    fp = fopen(filename, "rb");
+
+    if (fp == NULL)
+    {
+        fprintf(stderr, "Couldn't find program source file");
+        err = CL_INVALID_VALUE;
+    }
+    else
+    {
+        fseek(fp, 0, SEEK_END);
+        *sourceSize = ftell(fp);
+        fseek(fp, 0, SEEK_SET);
+
+        *source = (char *)malloc(sizeof(char) * (*sourceSize));
+        if (*source == NULL)
+        {
+            fprintf(stderr, "Couldn't allocate memory for program source");
+            err = CL_OUT_OF_HOST_MEMORY;
+        }
+        else
+        {
+            fread(*source, 1, *sourceSize, fp);
+        }
+    }
+
+    return err;
+}
 
 int main()
 {
+    srand(0);
     size_t param_value_size_ret = 0;
 
     cl_int CL_err = CL_SUCCESS;
@@ -56,7 +96,7 @@ int main()
     }
 
     // Info about each platform
-    platform_info_t plat_info;
+    platform_info plat_info;
     for (int i = 0; i < num_platforms; ++i)
     {
         printf("Platform %d:\n", i);
@@ -126,7 +166,7 @@ int main()
     }
 
     // Info about each device on platform 0
-    device_info_t dev_info;
+    device_info dev_info;
     for (int i = 0; i < num_devices; ++i)
     {
         printf("Device %d on platform 0:\n", i);
@@ -237,6 +277,126 @@ int main()
     }
 #endif
 
+    // Host-side allocation
+    cl_float h_x[LENGTH], h_y[LENGTH], a;
+    for (int i = 0; i < LENGTH; ++i)
+    {
+        h_x[i] = rand();
+        h_y[i] = rand();
+    }
+
+    // Device-side allocation
+    cl_mem d_x, d_y;
+    d_x = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, LENGTH, (void *)h_x, &CL_err);
+    d_y = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, LENGTH, (void *)h_y, &CL_err);
+    if (CL_err == CL_SUCCESS)
+    {
+        printf("Allocated buffer d_x\n");
+    }
+    else
+    {
+        printf("clCreateBuffer(%i)\n", CL_err);
+    }
+
+    if (CL_err == CL_SUCCESS)
+    {
+        printf("Allocated buffer d_y\n");
+    }
+    else
+    {
+        printf("clCreateBuffer(%i)\n", CL_err);
+    }
+
+    // Load and compile kernel
+    char *kernel = NULL;
+    size_t program_size = 0;
+    cl_program program;
+    CL_err = readSourceFromFile("saxpy.cl", &kernel, &program_size);
+    if (CL_err == CL_SUCCESS)
+    {
+        printf("Read source file for kernel SAXPY\n");
+    }
+    else
+    {
+        printf("cl_util_read_exe_relative_text_file(%i)\n", CL_err);
+    }
+
+    program = clCreateProgramWithSource(context, 1, (const char **)&kernel, &program_size, &CL_err);
+    if (CL_err == CL_SUCCESS)
+    {
+        printf("Created program object for SAXPY kernel\n");
+    }
+    else
+    {
+        printf("clCreateProgramWithSource(%i)\n", CL_err);
+    }
+
+    CL_err = clBuildProgram(program, num_devices, devices, NULL, NULL, NULL);
+    if (CL_err == CL_SUCCESS)
+    {
+        printf("Built program\n");
+    }
+    else
+    {
+        printf("clBuildProgram(%i)\n", CL_err);
+    }
+
+    // Create SAXPY kernel object
+    cl_kernel saxpy;
+    saxpy = clCreateKernel(program, "saxpy", &CL_err);
+    if (CL_err == CL_SUCCESS)
+    {
+        printf("Created SAXPY kernel\n");
+    }
+    else
+    {
+        printf("clCreateKernel(%i)\n", CL_err);
+    }
+
+    // Release d_x, d_y
+    CL_err = clReleaseMemObject(d_x);
+    if (CL_err == CL_SUCCESS)
+    {
+        printf("Released buffer d_x\n");
+    }
+    else
+    {
+        printf("clReleaseMemObject(%i)\n", CL_err);
+    }
+
+    CL_err = clReleaseMemObject(d_y);
+    if (CL_err == CL_SUCCESS)
+    {
+        printf("Released buffer d_y\n");
+    }
+    else
+    {
+        printf("clReleaseMemObject(%i)\n", CL_err);
+    }
+
+    // Release kernel
+    CL_err = clReleaseKernel(saxpy);
+    if (CL_err == CL_SUCCESS)
+    {
+        printf("Released kernel SAXPY\n");
+    }
+    else
+    {
+        printf("clReleaseKernel(%i)\n", CL_err);
+    }
+
+    // Release program
+    CL_err = clReleaseProgram(program);
+    if (CL_err == CL_SUCCESS)
+    {
+        printf("Released program\n");
+    }
+    else
+    {
+        printf("clReleaseProgram(%i)\n", CL_err);
+    }
+
+    // Release command queue
     CL_err = clReleaseCommandQueue(queue);
     if (CL_err == CL_SUCCESS)
     {
@@ -247,6 +407,7 @@ int main()
         printf("clReleaseCommandQueue(%i)\n", CL_err);
     }
 
+    // Release context
     CL_err = clReleaseContext(context);
     if (CL_err == CL_SUCCESS)
     {
