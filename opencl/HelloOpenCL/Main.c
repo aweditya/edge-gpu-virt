@@ -1,11 +1,10 @@
 // C standard includes
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 
 // OpenCL includes
 #include <CL/Utils/Utils.h>
-
-#define LENGTH 1024
 
 typedef struct platform_info
 {
@@ -66,6 +65,7 @@ int readSourceFromFile(const char *filename, char **source, size_t *sourceSize)
 int main()
 {
     srand(0);
+    const size_t length = 1024;
     size_t param_value_size_ret = 0;
 
     cl_int CL_err = CL_SUCCESS;
@@ -278,17 +278,18 @@ int main()
 #endif
 
     // Host-side allocation
-    cl_float h_x[LENGTH], h_y[LENGTH], a;
-    for (int i = 0; i < LENGTH; ++i)
+    cl_float h_x[length], h_y[length], a;
+    a = rand() / RAND_MAX;
+    for (int i = 0; i < length; ++i)
     {
-        h_x[i] = rand();
-        h_y[i] = rand();
+        h_x[i] = rand() / RAND_MAX;
+        h_y[i] = rand() / RAND_MAX;
     }
 
     // Device-side allocation
     cl_mem d_x, d_y;
-    d_x = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, LENGTH, (void *)h_x, &CL_err);
-    d_y = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, LENGTH, (void *)h_y, &CL_err);
+    d_x = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(cl_float) * length, (void *)h_x, &CL_err);
+    d_y = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, sizeof(cl_float) * length, (void *)h_y, &CL_err);
     if (CL_err == CL_SUCCESS)
     {
         printf("Allocated buffer d_x\n");
@@ -351,6 +352,79 @@ int main()
     else
     {
         printf("clCreateKernel(%i)\n", CL_err);
+    }
+
+    // Set arguments of kernel
+    CL_err = clSetKernelArg(saxpy, 0, sizeof(cl_float), &a);
+    if (CL_err == CL_SUCCESS)
+    {
+        printf("Set SAXPY arg 0\n");
+    }
+    else
+    {
+        printf("clSetKernelArg(%i)\n", CL_err);
+    }
+
+    CL_err = clSetKernelArg(saxpy, 1, sizeof(cl_mem), &d_x);
+    if (CL_err == CL_SUCCESS)
+    {
+        printf("Set SAXPY arg 1\n");
+    }
+    else
+    {
+        printf("clSetKernelArg(%i)\n", CL_err);
+    }
+
+    CL_err = clSetKernelArg(saxpy, 2, sizeof(cl_mem), &d_y);
+    if (CL_err == CL_SUCCESS)
+    {
+        printf("Set SAXPY arg 2\n");
+    }
+    else
+    {
+        printf("clSetKernelArg(%i)\n", CL_err);
+    }
+
+    // Enqueue kernel
+    CL_err = clEnqueueNDRangeKernel(queue, saxpy, 1, NULL, &length, NULL, 0, NULL, NULL);
+    if (CL_err == CL_SUCCESS)
+    {
+        printf("Enqueued kernel in command queue\n");
+    }
+    else
+    {
+        printf("clEnqueueNDRangeKernel(%i)\n", CL_err);
+    }
+
+    // Calculate reference values
+    for (int i = 0; i < length; ++i)
+    {
+        h_y[i] = a * h_y[i] + h_x[i]; // y = a*x + y
+    }
+
+    // Copy result back
+    CL_err = clEnqueueReadBuffer(queue, d_y, CL_TRUE, 0, sizeof(cl_float) * length, (void *)h_x, 0, NULL, NULL);
+    if (CL_err == CL_SUCCESS)
+    {
+        printf("Done with computation\n");
+    }
+    else
+    {
+        printf("clEnqueueReadBuffer(%i)\n", CL_err);
+    }
+
+    // Verify computation
+    for (int i = 0; i < length; ++i)
+    {
+        if (h_x[i] != h_y[i])
+        {
+            printf("Values at index %d do not match: %.06f\t%.06f\n", i, h_x[i], h_y[i]);
+            CL_err = CL_INVALID_VALUE;
+        }
+    }
+    if (CL_err == CL_SUCCESS)
+    {
+        printf("Values match\n");
     }
 
     // Release d_x, d_y
@@ -417,8 +491,9 @@ int main()
     {
         printf("clReleaseContext(%i)\n", CL_err);
     }
-
+    
     free(platforms);
     free(devices);
-    return 0;
+    free(kernel);
+    return CL_err;
 }
