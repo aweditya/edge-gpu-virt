@@ -28,7 +28,7 @@ typedef struct kernel_thread_args
 __device__ unsigned int get_smid(void)
 {
     unsigned int smID;
-    asm("mov.u32 %0, %smid;" : "=r"(smID));
+    asm volatile("mov.u32 %0, %smid;" : "=r"(smID));
     return smID;
 }
 
