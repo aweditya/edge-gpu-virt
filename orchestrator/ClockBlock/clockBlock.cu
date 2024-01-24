@@ -1,5 +1,5 @@
 #include "clockBlock.h"
-#include "KernelProfiler.h"
+#include "SMIdentifier.h"
 
 // This is a kernel that does no real work but runs at least for a specified number of clocks
 extern "C" __global__ void clockBlock(int blockOffsetX, int blockOffsetY, int blockOffsetZ,

@@ -1,5 +1,5 @@
 #include "SGEMM.h"
-#include "KernelProfiler.h"
+#include "SMIdentifier.h"
 
 extern "C" __global__ void SGEMM(int blockOffsetX, int blockOffsetY, int blockOffsetZ,
                                  int blockDimX, int blockDimY, int blockDimZ,
