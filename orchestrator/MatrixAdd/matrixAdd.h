@@ -2,6 +2,6 @@
 #define _MATRIX_ADD_H
 
 // Size of vectors to add
-#define N 16
+#define M 16
 
 #endif

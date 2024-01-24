@@ -1,11 +1,21 @@
 #include "SGEMM.h"
+#include "KernelProfiler.h"
 
 extern "C" __global__ void SGEMM(int blockOffsetX, int blockOffsetY, int blockOffsetZ,
+                                 int blockDimX, int blockDimY, int blockDimZ,
+                                 int *perSMThreads,
                                  const float *A, int lda,
                                  const float *B, int ldb,
                                  float *C, int ldc,
                                  int k, float alpha, float beta)
 {
+    int smID;
+    if (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0)
+    {
+        smID = get_smid();
+        atomicAdd(&perSMThreads[smID], blockDimX * blockDimY * blockDimZ);
+    }
+
     // Partial results
     float c[TILE_N];
     for (int i = 0; i < TILE_N; i++)
@@ -31,5 +41,11 @@ extern "C" __global__ void SGEMM(int blockOffsetX, int blockOffsetY, int blockOf
     for (int i = 0; i < TILE_N; i++)
     {
         C[t + i * ldc] = C[t + i * ldc] * beta + alpha * c[i];
+    }
+
+    __syncthreads();
+    if (threadIdx.x == 0 && threadIdx.y == 0)
+    {
+        atomicSub(&perSMThreads[smID], blockDimX * blockDimY * blockDimZ);
     }
 }
