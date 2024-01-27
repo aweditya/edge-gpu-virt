@@ -86,7 +86,7 @@ int main(int argc, char **argv)
     for (int i = 0; i < NUM_KERNELS; ++i)
     {
         checkCudaErrors(cuStreamCreate(&streams[i], CU_STREAM_DEFAULT));
-        clockBlockKernels.emplace_back(clockRate, profiler.perSMThreads_host);
+        clockBlockKernels.emplace_back(clockRate, &profiler.perSMThreads_host);
 
         clockBlockKernels[i].getKernelConfig(attrs[i].gridDimX, attrs[i].gridDimY, attrs[i].gridDimZ,
                                              attrs[i].blockDimX, attrs[i].blockDimY, attrs[i].blockDimZ);

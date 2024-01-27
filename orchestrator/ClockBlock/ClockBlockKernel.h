@@ -10,7 +10,7 @@
 class ClockBlockKernel : public Kernel
 {
 public:
-    ClockBlockKernel(int clockRate, int *perSMThreads) : clockRate(clockRate),
+    ClockBlockKernel(int clockRate, int **perSMThreads) : clockRate(clockRate),
                                                          perSMThreads(perSMThreads),
                                                          gridDimX(GRID_DIM_X),
                                                          gridDimY(GRID_DIM_Y),
@@ -44,7 +44,7 @@ private:
     long clock_count;
     long *h_a;
     CUdeviceptr d_a;
-    int *perSMThreads;
+    int **perSMThreads;
 };
 
 #endif

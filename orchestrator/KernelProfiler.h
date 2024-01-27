@@ -11,31 +11,28 @@ class KernelProfiler
 {
 public:
     KernelProfiler(int multiprocessorCount, int loggingInterval, int loggingDuration) : multiprocessorCount(multiprocessorCount),
-                                                                                                            loggingInterval(loggingInterval),
-                                                                                                            loggingDuration(loggingDuration)
+                                                                                        loggingInterval(loggingInterval),
+                                                                                        loggingDuration(loggingDuration) {}
+
+    ~KernelProfiler() {}
+
+    void launch()
     {
         checkCudaErrors(cuMemAllocManaged(&perSMThreads, sizeof(int) * multiprocessorCount, CU_MEM_ATTACH_GLOBAL));
-        checkCudaErrors(cuPointerGetAttribute((void *)perSMThreads_host, CU_POINTER_ATTRIBUTE_HOST_POINTER, perSMThreads));
+        perSMThreads_host = (int *)perSMThreads;
 
         for (int i = 0; i < multiprocessorCount; ++i)
         {
             perSMThreads_host[i] = 0;
         }
-    }
-
-    ~KernelProfiler()
-    {
-        checkCudaErrors(cuMemFree(perSMThreads));
-    }
-
-    void launch()
-    {
         pthread_create(&thread, NULL, threadFunction, this);
     }
 
     void finish()
     {
         pthread_join(thread, NULL);
+        checkCudaErrors(cuMemFree(perSMThreads));
+        perSMThreads_host = NULL;
     }
 
     int *perSMThreads_host;
@@ -59,11 +56,9 @@ private:
 
     void *threadFunction()
     {
-        printf("void *threadFunction()\n");
         int iterations = loggingDuration / loggingInterval;
         for (int i = 0; i < iterations; ++i)
         {
-            printf("loop\n");
             reportPerSMThreads();
             usleep(loggingInterval * 1000);
         }
