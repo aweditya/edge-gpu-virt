@@ -7,19 +7,19 @@ double drand(const double lo = 0.0, const double hi = 1.0)
 
 void MatrixAddKernel::memAlloc()
 {
-    h_a = (double *)malloc(N * sizeof(double));
-    h_b = (double *)malloc(N * sizeof(double));
-    h_c = (double *)malloc(N * sizeof(double));
+    h_a = (double *)malloc(M * sizeof(double));
+    h_b = (double *)malloc(M * sizeof(double));
+    h_c = (double *)malloc(M * sizeof(double));
 
-    for (int i = 0; i < N; ++i)
+    for (int i = 0; i < M; ++i)
     {
         h_a[i] = drand();
         h_b[i] = drand();
     }
 
-    checkCudaErrors(cuMemAlloc(&d_a, N * sizeof(double)));
-    checkCudaErrors(cuMemAlloc(&d_b, N * sizeof(double)));
-    checkCudaErrors(cuMemAlloc(&d_c, N * sizeof(double)));
+    checkCudaErrors(cuMemAlloc(&d_a, M * sizeof(double)));
+    checkCudaErrors(cuMemAlloc(&d_b, M * sizeof(double)));
+    checkCudaErrors(cuMemAlloc(&d_c, M * sizeof(double)));
 
     // for (int i = 0; i < N; ++i)
     // {
@@ -33,13 +33,13 @@ void MatrixAddKernel::memAlloc()
 
 void MatrixAddKernel::memcpyHtoD(const CUstream &stream)
 {
-    checkCudaErrors(cuMemcpyHtoDAsync(d_a, h_a, N * sizeof(double), stream));
-    checkCudaErrors(cuMemcpyHtoDAsync(d_b, h_b, N * sizeof(double), stream));
+    checkCudaErrors(cuMemcpyHtoDAsync(d_a, h_a, M * sizeof(double), stream));
+    checkCudaErrors(cuMemcpyHtoDAsync(d_b, h_b, M * sizeof(double), stream));
 }
 
 void MatrixAddKernel::memcpyDtoH(const CUstream &stream)
 {
-    checkCudaErrors(cuMemcpyDtoHAsync(h_c, d_c, N * sizeof(double), stream));
+    checkCudaErrors(cuMemcpyDtoHAsync(h_c, d_c, M * sizeof(double), stream));
 }
 
 void MatrixAddKernel::memFree()

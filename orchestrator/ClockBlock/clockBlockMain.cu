@@ -6,15 +6,19 @@
 #include <string>
 #include <vector>
 #include "KernelWrapper.h"
+#include "KernelProfiler.h"
 #include "ClockBlockKernel.h"
 #include "RoundRobinScheduler.h"
 #include "FCFSScheduler.h"
 #include "PriorityScheduler.h"
 
-#define NUM_KERNELS 10
+#define LOGGING_DURATION 10 // Logging duration (in ms)
+#define LOGGING_INTERVAL 1  // Logging interval (in ms)
+#define NUM_KERNELS 2       // Number of kernels to launch
 
 CUdevice device;
 int clockRate;
+int multiprocessorCount;
 CUcontext context;
 size_t totalGlobalMem;
 
@@ -40,6 +44,7 @@ void initCuda()
 
     // get device properties
     checkCudaErrors(cuDeviceGetAttribute(&clockRate, CU_DEVICE_ATTRIBUTE_CLOCK_RATE, device));
+    checkCudaErrors(cuDeviceGetAttribute(&multiprocessorCount, CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT, device));
 
     // get compute capabilities and the devicename
     checkCudaErrors(cuDeviceComputeCapability(&major, &minor, device));
@@ -67,6 +72,8 @@ int main(int argc, char **argv)
     RoundRobinScheduler scheduler;
     // FCFSScheduler scheduler;
 
+    KernelProfiler profiler(multiprocessorCount, LOGGING_INTERVAL, LOGGING_DURATION);
+
     const std::string moduleFile = "clockBlock.ptx";
     const std::string kernelName = "clockBlock";
 
@@ -79,7 +86,7 @@ int main(int argc, char **argv)
     for (int i = 0; i < NUM_KERNELS; ++i)
     {
         checkCudaErrors(cuStreamCreate(&streams[i], CU_STREAM_DEFAULT));
-        clockBlockKernels.emplace_back(clockRate);
+        clockBlockKernels.emplace_back(clockRate, profiler.perSMThreads_host);
 
         clockBlockKernels[i].getKernelConfig(attrs[i].gridDimX, attrs[i].gridDimY, attrs[i].gridDimZ,
                                              attrs[i].blockDimX, attrs[i].blockDimY, attrs[i].blockDimZ);
@@ -99,6 +106,7 @@ int main(int argc, char **argv)
     gettimeofday(&t0, NULL);
 
     scheduler.run();
+    profiler.launch();
 
     for (int i = 0; i < NUM_KERNELS; ++i)
     {
@@ -112,6 +120,7 @@ int main(int argc, char **argv)
 
     scheduler.stop();
     scheduler.finish();
+    profiler.finish();
 
     gettimeofday(&t1, NULL);
     timersub(&t1, &t0, &dt);

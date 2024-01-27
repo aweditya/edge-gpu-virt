@@ -22,7 +22,7 @@ public:
     void getKernelConfig(unsigned int &gridDimX, unsigned int &gridDimY, unsigned int &gridDimZ,
                          unsigned int &blockDimX, unsigned int &blockDimY, unsigned int &blockDimZ)
     {
-        gridDimX = N;
+        gridDimX = M;
         gridDimY = 1;
         gridDimZ = 1;
 

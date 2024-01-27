@@ -10,7 +10,14 @@
 class ClockBlockKernel : public Kernel
 {
 public:
-    ClockBlockKernel(int clockRate) : clockRate(clockRate) {}
+    ClockBlockKernel(int clockRate, int *perSMThreads) : clockRate(clockRate),
+                                                         perSMThreads(perSMThreads),
+                                                         gridDimX(GRID_DIM_X),
+                                                         gridDimY(GRID_DIM_Y),
+                                                         gridDimZ(GRID_DIM_Z),
+                                                         blockDimX(BLOCK_DIM_X),
+                                                         blockDimY(BLOCK_DIM_Y),
+                                                         blockDimZ(BLOCK_DIM_Z) {}
     ~ClockBlockKernel() {}
 
     void memAlloc();
@@ -21,20 +28,23 @@ public:
     void getKernelConfig(unsigned int &gridDimX, unsigned int &gridDimY, unsigned int &gridDimZ,
                          unsigned int &blockDimX, unsigned int &blockDimY, unsigned int &blockDimZ)
     {
-        gridDimX = 8;
-        gridDimY = 1;
-        gridDimZ = 1;
+        gridDimX = this->gridDimX;
+        gridDimY = this->gridDimY;
+        gridDimZ = this->gridDimZ;
 
-        blockDimX = 128;
-        blockDimY = 1;
-        blockDimZ = 1;
+        blockDimX = this->blockDimX;
+        blockDimY = this->blockDimY;
+        blockDimZ = this->blockDimZ;
     }
 
 private:
     int clockRate;
+    int gridDimX, gridDimY, gridDimZ;
+    int blockDimX, blockDimY, blockDimZ;
     long clock_count;
     long *h_a;
     CUdeviceptr d_a;
+    int *perSMThreads;
 };
 
 #endif

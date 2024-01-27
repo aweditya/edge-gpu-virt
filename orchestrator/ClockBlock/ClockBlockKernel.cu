@@ -7,8 +7,12 @@ void ClockBlockKernel::memAlloc()
 
     clock_count = KERNEL_TIME * clockRate;
 
-    args[3] = &d_a;
-    args[4] = &clock_count;
+    args[3] = &blockDimX;
+    args[4] = &blockDimY;
+    args[5] = &blockDimZ;
+    args[6] = perSMThreads;
+    args[7] = &d_a;
+    args[8] = &clock_count;
 }
 
 void ClockBlockKernel::memcpyHtoD(const CUstream &stream)

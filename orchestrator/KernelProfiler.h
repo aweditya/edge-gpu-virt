@@ -10,12 +10,17 @@
 class KernelProfiler
 {
 public:
-    KernelProfiler(int multiprocessorCount, int loggingInterval, int loggingDuration)
-        : multiprocessorCount(multiprocessorCount),
-          loggingInterval(loggingInterval),
-          loggingDuration(loggingDuration)
+    KernelProfiler(int multiprocessorCount, int loggingInterval, int loggingDuration) : multiprocessorCount(multiprocessorCount),
+                                                                                                            loggingInterval(loggingInterval),
+                                                                                                            loggingDuration(loggingDuration)
     {
-        checkCudaErrors(cuMemAllocManaged((void **)&perSMThreads, sizeof(int) * multiprocessorCount, CU_MEM_ATTACH_GLOBAL));
+        checkCudaErrors(cuMemAllocManaged(&perSMThreads, sizeof(int) * multiprocessorCount, CU_MEM_ATTACH_GLOBAL));
+        checkCudaErrors(cuPointerGetAttribute((void *)perSMThreads_host, CU_POINTER_ATTRIBUTE_HOST_POINTER, perSMThreads));
+
+        for (int i = 0; i < multiprocessorCount; ++i)
+        {
+            perSMThreads_host[i] = 0;
+        }
     }
 
     ~KernelProfiler()
@@ -33,7 +38,8 @@ public:
         pthread_join(thread, NULL);
     }
 
-    int *perSMThreads;
+    int *perSMThreads_host;
+    CUdeviceptr perSMThreads;
 
 private:
     int multiprocessorCount; // Number of SMs on GPU (retrieved from device properties)
@@ -46,17 +52,19 @@ private:
         printf("[thread id: %ld] ", pthread_self());
         for (int i = 0; i < multiprocessorCount; ++i)
         {
-            printf("%d\t", perSMThreads[i]);
+            printf("%d\t", perSMThreads_host[i]);
         }
         printf("\n");
     }
 
     void *threadFunction()
     {
+        printf("void *threadFunction()\n");
         int iterations = loggingDuration / loggingInterval;
         for (int i = 0; i < iterations; ++i)
         {
-            reportThreadsRunning();
+            printf("loop\n");
+            reportPerSMThreads();
             usleep(loggingInterval * 1000);
         }
 
