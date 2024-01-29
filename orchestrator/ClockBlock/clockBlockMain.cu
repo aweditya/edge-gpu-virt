@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 #include "KernelWrapper.h"
-#include "KernelProfiler.h"
+#include "SMThreadOccupancyProfiler.h"
 #include "ClockBlockKernel.h"
 #include "RoundRobinScheduler.h"
 #include "FCFSScheduler.h"
@@ -72,7 +72,7 @@ int main(int argc, char **argv)
     RoundRobinScheduler scheduler;
     // FCFSScheduler scheduler;
 
-    KernelProfiler profiler(multiprocessorCount, LOGGING_INTERVAL, LOGGING_DURATION);
+    SMThreadOccupancyProfiler profiler(multiprocessorCount, LOGGING_INTERVAL, LOGGING_DURATION);
 
     const std::string moduleFile = "clockBlock.ptx";
     const std::string kernelName = "clockBlock";

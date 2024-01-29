@@ -7,7 +7,7 @@
 #include <vector>
 #include <parboil.h>
 #include "KernelWrapper.h"
-#include "KernelProfiler.h"
+#include "SMThreadOccupancyProfiler.h"
 #include "SGEMMKernel.h"
 #include "RoundRobinScheduler.h"
 #include "FCFSScheduler.h"
@@ -84,7 +84,7 @@ int main(int argc, char **argv)
     FCFSScheduler scheduler;
     // PriorityScheduler scheduler;
 
-    KernelProfiler profiler(multiprocessorCount, LOGGING_INTERVAL, LOGGING_DURATION);
+    SMThreadOccupancyProfiler profiler(multiprocessorCount, LOGGING_INTERVAL, LOGGING_DURATION);
 
     const std::string moduleFile = "SGEMM.ptx";
     const std::string kernelName = "SGEMM";

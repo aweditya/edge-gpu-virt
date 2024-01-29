@@ -1,5 +1,5 @@
-#ifndef _KERNEL_PROFILER_H
-#define _KERNEL_PROFILER_H
+#ifndef _SM_THREAD_OCCUPANCY_PROFILER_H
+#define _SM_THREAD_OCCUPANCY_PROFILER_H
 
 #include <pthread.h>
 #include <cuda.h>
@@ -7,14 +7,14 @@
 
 #include "errchk.h"
 
-class KernelProfiler
+class SMThreadOccupancyProfiler
 {
 public:
-    KernelProfiler(int multiprocessorCount, int loggingInterval, int loggingDuration) : multiprocessorCount(multiprocessorCount),
-                                                                                        loggingInterval(loggingInterval),
-                                                                                        loggingDuration(loggingDuration) {}
+    SMThreadOccupancyProfiler(int multiprocessorCount, int loggingInterval, int loggingDuration) : multiprocessorCount(multiprocessorCount),
+                                                                                                   loggingInterval(loggingInterval),
+                                                                                                   loggingDuration(loggingDuration) {}
 
-    ~KernelProfiler() {}
+    ~SMThreadOccupancyProfiler() {}
 
     void launch()
     {
@@ -68,9 +68,9 @@ private:
 
     static void *threadFunction(void *args)
     {
-        KernelProfiler *kernelProfiler = (KernelProfiler *)args;
+        SMThreadOccupancyProfiler *kernelProfiler = (SMThreadOccupancyProfiler *)args;
         return kernelProfiler->threadFunction();
     }
 };
 
-#endif // _KERNEL_PROFILER_H
+#endif // _SM_THREAD_OCCUPANCY_PROFILER_H
