@@ -7,14 +7,18 @@
 #include <vector>
 #include <parboil.h>
 #include "KernelWrapper.h"
+#include "KernelProfiler.h"
 #include "SGEMMKernel.h"
 #include "RoundRobinScheduler.h"
 #include "FCFSScheduler.h"
 #include "PriorityScheduler.h"
 
-#define NUM_KERNELS 2
+#define LOGGING_DURATION 10 // Logging duration (in ms)
+#define LOGGING_INTERVAL 1 // Logging interval (in us)
+#define NUM_KERNELS 2       // Number of kernels to launch
 
 CUdevice device;
+int multiprocessorCount;
 CUcontext context;
 size_t totalGlobalMem;
 
@@ -38,6 +42,9 @@ void initCuda()
     cuDeviceGetName(name, 100, device);
     printf("> Using device 0: %s\n", name);
 
+    // get device properties
+    checkCudaErrors(cuDeviceGetAttribute(&multiprocessorCount, CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT, device));
+
     // get compute capabilities and the devicename
     checkCudaErrors(cuDeviceComputeCapability(&major, &minor, device));
     printf("> GPU Device has SM %d.%d compute capability\n", major, minor);
@@ -60,13 +67,13 @@ int main(int argc, char **argv)
 {
     struct pb_Parameters *params;
 
-    /* Read command line. Expect 3 inputs: A, B and B^T
+    /* Read command line. Expect 3 inputs: A, B^T
        in column-major layout*/
     params = pb_ReadParameters(&argc, argv);
     printf("%s %s %s\n", params->inpFiles[0], params->inpFiles[1], params->inpFiles[2]);
-    if ((params->inpFiles[0] == NULL) || (params->inpFiles[1] == NULL) || (params->inpFiles[2] == NULL) || (params->inpFiles[3] != NULL))
+    if ((params->inpFiles[0] == NULL) || (params->inpFiles[1] == NULL))
     {
-        fprintf(stderr, "Expecting three input filenames\n");
+        fprintf(stderr, "Expecting two input filenames\n");
         exit(-1);
     }
 
@@ -77,19 +84,21 @@ int main(int argc, char **argv)
     FCFSScheduler scheduler;
     // PriorityScheduler scheduler;
 
+    KernelProfiler profiler(multiprocessorCount, LOGGING_INTERVAL, LOGGING_DURATION);
+
     const std::string moduleFile = "SGEMM.ptx";
     const std::string kernelName = "SGEMM";
 
     CUstream streams[NUM_KERNELS];
     std::vector<SGEMMKernel> sgemmKernels;
     sgemmKernels.reserve(NUM_KERNELS);
-    
+
     kernel_attr_t attrs[NUM_KERNELS];
     std::vector<KernelWrapper> wrappers;
     for (int i = 0; i < NUM_KERNELS; ++i)
     {
         checkCudaErrors(cuStreamCreate(&streams[i], CU_STREAM_DEFAULT));
-        sgemmKernels.emplace_back(params);
+        sgemmKernels.emplace_back(params, &profiler.perSMThreads_host);
 
         sgemmKernels[i].getKernelConfig(attrs[i].gridDimX, attrs[i].gridDimY, attrs[i].gridDimZ,
                                         attrs[i].blockDimX, attrs[i].blockDimY, attrs[i].blockDimZ);
@@ -109,6 +118,7 @@ int main(int argc, char **argv)
     gettimeofday(&t0, NULL);
 
     scheduler.run();
+    profiler.launch();
 
     for (int i = 0; i < NUM_KERNELS; ++i)
     {
@@ -122,6 +132,7 @@ int main(int argc, char **argv)
 
     scheduler.stop();
     scheduler.finish();
+    profiler.finish();
 
     gettimeofday(&t1, NULL);
     timersub(&t1, &t0, &dt);

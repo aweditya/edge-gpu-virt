@@ -8,15 +8,19 @@ void SGEMMKernel::memAlloc()
     checkCudaErrors(cuMemAlloc(&dB, B_sz));
     checkCudaErrors(cuMemAlloc(&dC, C_sz));
 
-    args[3] = &dA;
-    args[4] = &matArow;
-    args[5] = &dB;
-    args[6] = &matBcol;
-    args[7] = &dC;
+    args[3] = &blockDimX;
+    args[4] = &blockDimY;
+    args[5] = &blockDimZ;
+    args[6] = perSMThreads;
+    args[7] = &dA;
     args[8] = &matArow;
-    args[9] = &matAcol;
-    args[10] = &alpha;
-    args[11] = &beta;
+    args[9] = &dB;
+    args[10] = &matBcol;
+    args[11] = &dC;
+    args[12] = &matArow;
+    args[13] = &matAcol;
+    args[14] = &alpha;
+    args[15] = &beta;
 }
 
 void SGEMMKernel::memcpyHtoD(const CUstream &stream)

@@ -41,7 +41,7 @@ public:
 private:
     int multiprocessorCount; // Number of SMs on GPU (retrieved from device properties)
     int loggingInterval;     // Logging interval (in ms)
-    int loggingDuration;     // Logging duration (in ms)
+    int loggingDuration;     // Logging duration (in us)
     pthread_t thread;
 
     void reportPerSMThreads()
@@ -56,7 +56,7 @@ private:
 
     void *threadFunction()
     {
-        int iterations = loggingDuration / loggingInterval;
+        int iterations = loggingDuration * 1000 / loggingInterval;
         for (int i = 0; i < iterations; ++i)
         {
             reportPerSMThreads();

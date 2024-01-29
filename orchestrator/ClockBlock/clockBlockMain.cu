@@ -13,7 +13,7 @@
 #include "PriorityScheduler.h"
 
 #define LOGGING_DURATION 10 // Logging duration (in ms)
-#define LOGGING_INTERVAL 1  // Logging interval (in ms)
+#define LOGGING_INTERVAL 1000  // Logging interval (in us)
 #define NUM_KERNELS 2       // Number of kernels to launch
 
 CUdevice device;
